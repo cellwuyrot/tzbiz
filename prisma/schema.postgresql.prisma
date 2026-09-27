@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  CLIENT
+}
+
+enum ProjectStatus {
+  IN_PROGRESS
+  DONE
+  SUPPORT
+}
+
+enum ServiceMediaType {
+  IMAGE
+  VIDEO
+}
+
+enum LeadStatus {
+  NEW
+  IN_PROGRESS
+  DONE
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         Role      @default(CLIENT)
+  createdAt    DateTime  @default(now())
+  projects     Project[]
+  sessions     Session[]
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  title       String
+  description String
+  previewPath String
+  projectUrl  String
+  status      ProjectStatus @default(IN_PROGRESS)
+  isPublic    Boolean       @default(false)
+  clientId    String?
+  client      User?         @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([clientId])
+  @@index([status])
+  @@index([isPublic])
+}
+
+model Service {
+  id              String        @id @default(cuid())
+  slug            String        @unique
+  title           String
+  shortDescription String
+  fullDescription String
+  includes        String
+  stages          String
+  sortOrder       Int           @default(0)
+  isPublished     Boolean       @default(false)
+  media           ServiceMedia[]
+  leads           LeadRequest[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([sortOrder])
+  @@index([isPublished])
+}
+
+model ServiceMedia {
+  id        String          @id @default(cuid())
+  serviceId String
+  type      ServiceMediaType
+  path      String
+  sortOrder Int             @default(0)
+  service   Service         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  createdAt DateTime        @default(now())
+
+  @@index([serviceId])
+  @@index([serviceId, sortOrder])
+}
+
+model SiteSettings {
+  id           String   @id
+  tagline      String
+  heroTitle    String
+  heroSubtitle String
+  contacts     String
+  updatedAt    DateTime @updatedAt
+}
+
+model LeadRequest {
+  id            String     @id @default(cuid())
+  name          String
+  email         String
+  phone         String
+  company       String
+  serviceId     String?
+  serviceTitle  String
+  message       String
+  status        LeadStatus @default(NEW)
+  privacyConsentAt DateTime
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  service       Service?   @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([email])
+  @@index([serviceId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}

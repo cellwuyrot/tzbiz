@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" rx="180" fill="#15171A"/>
+  <defs>
+    <linearGradient id="trioz" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2DD4BF"/>
+      <stop offset="52%" stop-color="#F4F7F8"/>
+      <stop offset="100%" stop-color="#81DFDF"/>
+    </linearGradient>
+  </defs>
+  <g fill="url(#trioz)">
+    <path d="M338 266 359 301 541 302 449 474 500 470 593 301 634 299 654 266 633 230 359 230Z"/>
+    <path d="M238 454 219 497 352 728 393 728 413 694 323 536 520 527 495 486 296 490 275 454Z"/>
+    <path d="M500 440 476 485 579 655 558 694 578 726 619 726 757 486 737 453 696 453 604 609Z"/>
+  </g>
+</svg>
