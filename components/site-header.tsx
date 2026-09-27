@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ArrowUpRight, LogoMark } from "./icons";
 
 export function SiteHeader({ basePath = "" }: { basePath?: string }) {
@@ -9,13 +10,13 @@ export function SiteHeader({ basePath = "" }: { basePath?: string }) {
   return (
     <header className="relative z-30">
       <div className="site-shell flex min-h-20 items-center justify-between gap-5 py-3">
-        <a href="/" className="group inline-flex items-center gap-3" aria-label="TRIOZ — на главную">
+        <Link href="/" className="group inline-flex items-center gap-3" aria-label="TRIOZ — на главную">
           <LogoMark />
           <div>
             <span className="brand-mark text-text">TRIOZ</span>
             <span className="ml-3 hidden type-ui text-subtle sm:inline">Digital systems</span>
           </div>
-        </a>
+        </Link>
         <nav className="hidden items-center gap-6 lg:flex" aria-label="Основная навигация">
           <a href={servicesHref} className="type-ui text-muted hover:text-text">Услуги</a>
           <a href={projectsHref} className="type-ui text-muted hover:text-text">Проекты</a>

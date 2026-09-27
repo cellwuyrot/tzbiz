@@ -73,13 +73,6 @@ const blankService = {
   isPublished: true,
 };
 
-const blankSettings = {
-  tagline: "",
-  heroTitle: "",
-  heroSubtitle: "",
-  contacts: "",
-};
-
 export function AdminConsole({
   initialClients,
   initialProjects,

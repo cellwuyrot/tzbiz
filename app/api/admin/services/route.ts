@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function PATCH(_request: NextRequest) {
+export async function PATCH() {
   const auth = await requireApiRole("ADMIN");
   if (auth.response) return auth.response;
   return NextResponse.json({ error: "Для изменения услуги используйте /api/admin/services/<id>." }, { status: 405 });

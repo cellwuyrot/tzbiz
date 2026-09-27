@@ -1,3 +1,7 @@
+## Исправление production build
+
+В архив внесено исправление для Next.js ESLint: внутренние переходы на `/` в `app/enter/page.tsx` и `components/site-header.tsx` переведены с `<a>` на `next/link`. Также удалены неиспользуемые импорты/параметры в admin API и неиспользуемый `blankSettings`. Это устраняет ошибки `@next/next/no-html-link-for-pages` и связанные предупреждения при `next build`.
+
 # TRIOZ — отчёт по доработке (продолжение)
 
 ## 0. Аудит перед этой итерацией
