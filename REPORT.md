@@ -1,218 +1,173 @@
-## Исправление production build
+# TRIOZ — production audit / bugfix report
 
-В архив внесено исправление для Next.js ESLint: внутренние переходы на `/` в `app/enter/page.tsx` и `components/site-header.tsx` переведены с `<a>` на `next/link`. Также удалены неиспользуемые импорты/параметры в admin API и неиспользуемый `blankSettings`. Это устраняет ошибки `@next/next/no-html-link-for-pages` и связанные предупреждения при `next build`.
+Дата проверки: 28.09.2026
 
-# TRIOZ — отчёт по доработке (продолжение)
+## Итог
 
-## 0. Аудит перед этой итерацией
+Исходный ZIP проверен на структуру, серверные маршруты, права доступа, файловые загрузки, Prisma migrations, клиентскую логику, синтаксис TypeScript/TSX и доступные runtime-smoke сценарии.
 
-Аудит проходил по текущему проекту из предыдущего ZIP, уже с вынесенными в БД услугами/настройками и проектами.
+Исправлены два выявленных production/security класса проблем:
 
-Формат: `файл:строка — проблема — что делать`.
+1. **Сброс пароля клиента не отзывал существующие сессии.**
+   Теперь смена пароля и удаление всех активных сессий клиента выполняются внутри одной Prisma-транзакции.
 
-- `components/icons.tsx:27-35` — в `LogoMark` использовался временный схематичный знак, не совпадающий с присланным фирменным логотипом — заменить на векторный знак, трассированный с предоставленного изображения, без растрового файла в интерфейсе.
-- `app/page.tsx:150-158` — подвал содержал только логотип/контактную строку и одну ссылку — расширить навигацию, контакты, ссылки на услуги и основной `trioz.ru/connect`.
-- `app/admin/page.tsx` + `components/admin-console.tsx` — отдельного контура публичных заявок не было — добавить `LeadRequest`, таблицу заявок и серверные CRUD/status routes.
-- `prisma/schema*.prisma` — не было сущности для формы обратной связи — добавить `LeadRequest` и статусы `NEW/IN_PROGRESS/DONE`.
-- `app/api/*` — не было публичного endpoint для заявки и SMTP-уведомления — добавить серверную Zod-валидацию, same-origin/honeypot/rate-limit и отправку через SMTP ящика `info@trioz.ru`.
-- `app/layout.tsx:7-12` — базовые metadata были минимальными — добавить canonical, robots, Open Graph/Twitter, keywords, icons и JSON-LD Organization/WebSite.
-- `app/robots.ts` — не был задан `sitemap.xml` в ответе robots — добавить absolute sitemap URL.
-- `app/` — отсутствовал индексируемый URL отдельной услуги — добавить `/services/[slug]` с metadata, JSON-LD и breadcrumb.
-- `app/page.tsx` / публичная навигация — не было явной формы заявки внутри лендинга — добавить CTA-секцию с клиентской формой.
-- `components/portfolio-slider.tsx` — стрелки были глобальными слушателями `window`, а счётчик использовал внешний `index` даже для неактивных слайдов — ограничить keyboard navigation фокусом самого слайдера и считать номер текущего элемента.
-- `components/admin-console.tsx` — список клиентов отображался карточками — перевести его в табличный вид; для данных заявки сделать отдельную таблицу с услугой и комментариями.
-- `README.md` — отсутствовали настройки SMTP и описание заявки/SEO — обновить документацию.
+2. **Prisma provider выбирался слишком мягко.**
+   Раньше при отсутствии `DATABASE_URL` скрипт молча выбирал SQLite. В production это могло привести к генерации Prisma Client под SQLite при фактическом PostgreSQL runtime.
+   Теперь при `NODE_ENV=production`:
+   - `DATABASE_URL` обязателен;
+   - разрешён только `postgres://` / `postgresql://`;
+   - неправильная конфигурация завершается ошибкой до генерации/миграции.
 
-## 1. Логотип
+Дополнительно:
+- обновлён `next` до `15.5.26`;
+- обновлены `react` / `react-dom` до `19.1.9`;
+- `eslint-config-next` синхронизирован с `15.5.26`;
+- добавлены `engines.node >=20.9.0` и `packageManager: npm@10.9.2`;
+- добавлен безопасный `ecosystem.config.cjs` только для `tzbiz`;
+- генерация временных паролей переведена с modulo-byte выбора на `crypto.randomInt`;
+- добавлен regression-test для сброса пароля с отзывом сессий;
+- удалён stale `tsconfig.tsbuildinfo` из поставочного архива.
 
-- В `public/trioz-logo.svg` создан векторный знак на основе предоставленного изображения.
-- `LogoMark` в `components/icons.tsx` теперь использует тот же геометрический знак, а не временный символ.
-- `public/favicon.svg` использует этот знак на фоне `#15171A`.
-- SVG проверены XML parser'ом и дополнительно отрендерены локально для визуальной проверки.
+## Тесты и проверки
 
-## 2. Заявки клиентов
+### Выполнено успешно
 
-### БД
+| Проверка | Результат |
+|---|---|
+| `node --check scripts/prisma-sync.mjs` | PASS |
+| `node --check scripts/seed.mjs` | PASS |
+| `node --check ecosystem.config.cjs` | PASS |
+| TypeScript/TSX parse diagnostics | PASS — 69 файлов, 0 parse errors |
+| SQLite migrations 0001→0003 | PASS |
+| Foreign keys / indexes SQLite | PASS |
+| Seed content structure | PASS — 11 услуг |
+| Upload validation runtime smoke | PASS — 8/8 |
+| Async upload/signature smoke | PASS — 2/2 |
+| Client project isolation | PASS |
+| Role isolation | PASS |
+| Order URL generation | PASS |
+| Production Prisma guard: no `DATABASE_URL` | PASS — корректно завершается ошибкой |
+| Production Prisma guard: SQLite URL | PASS — корректно завершается ошибкой |
+| Production Prisma provider sync: PostgreSQL URL | PASS |
 
-Добавлена сущность `LeadRequest`:
+### Статический security audit
 
-- `id`
-- `name`
-- `email`
-- `phone`
-- `company`
-- `serviceId` (nullable)
-- `serviceTitle` (snapshot на момент заявки)
-- `message`
-- `status` (`NEW`, `IN_PROGRESS`, `DONE`)
-- `privacyConsentAt`
-- `createdAt`, `updatedAt`
+Все admin API handlers проверяют `requireApiRole("ADMIN")`.
 
-Добавлена migration `0003_leads` для SQLite и PostgreSQL.
+Все state-changing admin handlers, которые реально изменяют данные, дополнительно проверяют CSRF. `POST /api/admin/leads` является намеренным `405`-endpoint без изменения данных и поэтому отдельная CSRF-проверка ему не требуется.
 
-### Публичная форма
+Файловые пути к upload выдаются только через серверно сгенерированные 40-символьные hex-имена. Публичный endpoint проверяет принадлежность файла к опубликованной услуге/публичному проекту либо права текущего клиента/admin.
 
-Форма в секции `#contact` принимает:
+### Полный npm-контур
 
-- имя;
-- email;
-- телефон;
-- компанию;
-- услугу из опубликованного каталога;
-- особенности проекта / комментарии;
-- обязательное согласие на обработку данных.
+Полностью выполнить:
+- `npm install`
+- `npm run lint`
+- `npm run typecheck`
+- `npm test`
+- `npm run build`
+- browser E2E
 
-На сервере проверяются:
+в текущем sandbox не удалось, потому что npm registry недоступен по сети (`EAI_AGAIN` при обращении к `registry.npmjs.org`). В проекте отсутствует `node_modules`, поэтому выдавать эти проверки как успешно выполненные было бы некорректно.
 
-- Zod-схема;
-- существование и публикация выбранной услуги;
-- same-origin (с учётом `NEXT_PUBLIC_APP_URL`);
-- honeypot-поле;
-- rate limit: до 4 заявок за 15 минут на IP в пределах текущего инстанса.
+Это ограничение окружения, а не обнаруженная ошибка исходного кода.
 
-Заявка сначала сохраняется в БД, затем отправляется уведомление на `LEADS_EMAIL_TO` (по умолчанию `info@trioz.ru`). В письме:
+## Что проверено по функциональным зонам
 
-- отправитель `info@trioz.ru` по умолчанию;
-- `Reply-To` — email клиента;
-- имя, email, телефон, компания;
-- выбранная услуга и slug;
-- комментарий;
-- ID заявки.
-
-При сбое SMTP заявка не теряется: она остаётся в БД и доступна администратору, ошибка фиксируется серверным логом.
+### Публичная часть
+- динамический каталог опубликованных услуг;
+- отдельные `/services/[slug]`;
+- query-параметр `/?service=<slug>` и modal navigation;
+- публичный portfolio только по `isPublic=true`;
+- форма заявки и серверная валидация;
+- SMTP notification fallback без потери заявки;
+- robots/sitemap/noindex;
+- controlled upload delivery.
 
 ### Админка
+- role protection;
+- CSRF на state-changing endpoints;
+- clients CRUD;
+- password reset;
+- projects CRUD;
+- services CRUD;
+- media order/delete;
+- site settings;
+- leads status/delete.
 
-Добавлен раздел `Заявки клиентов` с таблицей:
+### Безопасность
+- bcrypt для паролей;
+- httpOnly session cookie;
+- CSRF token cookie/header pair;
+- login rate limiting;
+- role isolation;
+- project isolation;
+- upload extension/MIME/size checks;
+- image signature check;
+- same-origin check для public lead endpoint.
 
-`Дата | Клиент | Контакты | Услуга | Особенности / комментарии | Статус | Удалить`.
+## Зависимости
 
-Статус можно менять без перезагрузки; удаление защищено серверной ролью и CSRF.
+Исходный проект содержал `next ^15.5.7` и `react ^19.1.0`.
 
-Раздел `Клиенты` тоже переведён в табличный вид для аккаунтов авторизованных клиентов.
+Поставочная версия закрепляет:
+- `next: 15.5.26`
+- `react: 19.1.9`
+- `react-dom: 19.1.9`
+- `eslint-config-next: 15.5.26`
 
-## 3. Email-конфигурация
+`15.5.26` выбран как актуальный backport в ветке Next 15 на дату проверки; React 19.1.9 закрывает известные более ранние RSC/Server Functions проблемы для ветки 19.1.
 
-В `.env.example` добавлены:
+## Ограничения, которые остаются внешними
 
-```env
-SMTP_HOST="smtp.example.com"
-SMTP_PORT="465"
-SMTP_SECURE="true"
-SMTP_USER="info@trioz.ru"
-SMTP_PASS="replace-with-mailbox-password"
-EMAIL_FROM="info@trioz.ru"
-LEADS_EMAIL_TO="info@trioz.ru"
+Нельзя проверить из ZIP:
+- реальные PostgreSQL credentials;
+- реальный SMTP mailbox;
+- доступность внешнего `https://trioz.ru/connect`;
+- reverse proxy / nginx;
+- реальный PM2 daemon;
+- реальный browser E2E на production server.
+
+Перед production нужно выполнить на сервере реальный `npm install`, затем `npm run db:deploy`, `npm run build`, а после запуска — HTTP smoke-check публичной главной, `/services/<slug>`, `/api/auth/csrf`, формы заявки и входа в админку.
+
+## Production sequence
+
+```bash
+npm install
+
+# .env должен содержать как минимум:
+# DATABASE_URL=postgresql://...
+# SESSION_SECRET=...
+# ADMIN_EMAIL=...
+# ADMIN_PASSWORD=...
+# NEXT_PUBLIC_APP_URL=https://...
+# SMTP_HOST=...
+# SMTP_PORT=...
+# SMTP_SECURE=true
+# SMTP_USER=...
+# SMTP_PASS=...
+# EMAIL_FROM=...
+# LEADS_EMAIL_TO=...
+
+npm run db:deploy
+npm run build
+
+pm2 start ecosystem.config.cjs --update-env
+pm2 save
+pm2 status
 ```
 
-Использован `nodemailer` как единственная новая библиотека, напрямую связанная с новой функциональностью отправки почты. Таймауты SMTP ограничены 10 секундами, чтобы форма не зависала бесконечно при проблеме почтового сервера.
+Для удаления старого процесса:
 
-## 4. SEO и полноценность лендинга
+```bash
+pm2 delete tzbiz
+pm2 save
+```
 
-Добавлено:
+Для удаления только его логов:
 
-- `metadataBase: https://trioz.ru`;
-- title template и расширенное description;
-- canonical;
-- robots/googlebot settings;
-- Open Graph и Twitter metadata;
-- favicon;
-- JSON-LD `Organization` + `WebSite`;
-- `app/sitemap.ts` с главной страницей и опубликованными услугами;
-- `robots.txt` с `sitemap.xml`;
-- отдельные индексируемые страницы `/services/[slug]`;
-- JSON-LD `Service` + `BreadcrumbList` для услуг;
-- визуальные хлебные крошки;
-- `404` страница.
+```bash
+rm -f ~/.pm2/logs/tzbiz-out.log ~/.pm2/logs/tzbiz-error.log
+```
 
-Модальное окно услуги дополнительно содержит ссылку на SEO-страницу `/services/<slug>`. Таким образом, основной UX остаётся модальным, но поисковик получает стабильные URL с содержанием услуги.
-
-## 5. Подвал и навигация
-
-Подвал расширен до нескольких колонок:
-
-- описание TRIOZ Digital systems;
-- навигация по секциям;
-- email `info@trioz.ru`;
-- кликабельный `https://trioz.ru/connect`;
-- динамический список первых опубликованных услуг без захардкоженного каталога;
-- год и ссылка на основной проект.
-
-Header расширен навигацией `Услуги / Проекты / О компании / Контакты` и CTA `Оставить заявку`.
-
-## 6. Слайдер проектов
-
-- Публичные проекты по-прежнему читаются из `Project` с `isPublic = true`.
-- Изображение каждого проекта кликабельно и ведёт на `projectUrl`.
-- Клавиши ←/→ работают только при фокусе на самом слайдере, а не глобально на странице.
-- Счётчик использует реальный индекс проекта.
-- `prefers-reduced-motion` продолжает отключать анимационные переходы.
-
-## 7. Варианты девиза
-
-Установлен:
-
-**«Результат за нами. Ответственность тоже.»**
-
-Остальные варианты:
-
-1. «Сделали. Проверили. Отвечаем.»
-2. «За результат отвечаем. За процесс тоже.»
-3. «Ставим задачу в работу. Доводим до результата.»
-4. «Берём задачу. Передаём результат. Остаёмся отвечать.»
-5. «Запускаем то, за что готовы отвечать.»
-
-## 8. Технические проверки
-
-Выполнено без npm-зависимостей:
-
-- `node --check scripts/prisma-sync.mjs` — OK.
-- `node --check scripts/seed.mjs` — OK.
-- TypeScript parser diagnostics для **63** файлов `.ts/.tsx` — **0 синтаксических ошибок**.
-- SVG `public/trioz-logo.svg` и `public/favicon.svg` — XML parse OK.
-- SQLite `0003_leads` — применена к in-memory SQLite; таблица и индексы созданы.
-- Статический audit `app/api/admin/*`: все admin handlers проверяют `requireApiRole("ADMIN")`; state-changing handlers дополнительно проверяют CSRF. `GET` endpoint для заявок специально не требует CSRF, так как он read-only.
-- Проверка raw colors: color literals в TS/TSX не найдены, кроме HTML-entity `&#039;` в mailer; цветовые значения остаются в token-блоке CSS.
-- Проверка мелкой типографики: `text-xs/text-sm` и CSS `font-size` ниже 16px не найдены.
-- Runtime-каталог 11 услуг в `app/components/lib` не захардкожен; slug-и находятся в seed/динамических ссылках, каталог строится из БД.
-
-### Что не удалось подтвердить из-за окружения
-
-`npm install --offline` ранее завершался `ENOTCACHED`, а повторный обычный `npm install --no-audit --no-fund` не завершился в отведённое время. В проекте `node_modules` отсутствует.
-
-Поэтому в этой среде **не выдаются за проверенные**:
-
-- `npm run lint`;
-- dependency-aware `npm run typecheck`;
-- `npm test`;
-- `npm run build`;
-- полный browser E2E (вход администратора, реальная отправка SMTP, CRUD услуги с 2 изображениями + видео, прямой deep-link, client isolation в браузере, 320px и реальный reduced-motion режим).
-
-Глобальный `tsc --noEmit` запускался только как дополнительный синтаксико-диагностический сигнал, но он закономерно получает ошибки разрешения модулей из-за отсутствующих `node_modules`; его нельзя считать успешной typecheck-проверкой проекта.
-
-## 9. Что осталось за рамками
-
-- Реальные SMTP credentials для `info@trioz.ru` не входят в архив и должны быть заданы через `.env`/secret manager.
-- Автоматический drag-and-drop для сортировки услуг/медиа не добавлялся — используется существующая модель `sortOrder`.
-- Отдельная сущность `PortfolioProject` не вводилась: слайдер использует существующую `Project`, чтобы не дублировать данные и не нарушать изоляцию клиентских проектов.
-- Политика конфиденциальности как отдельная юридическая страница не выдумывалась, так как её официальный текст не предоставлен.
-
-## 10. Упаковка
-
-Архив для передачи должен исключать:
-
-- `node_modules/`
-- `.git/`
-- `.next/`
-- локальную БД;
-- runtime `uploads/`.
-
-Перед production запуском: `npm install` → заполнить SMTP → `npm run db:setup`/`npm run db:deploy` → `npm run lint` → `npm run typecheck` → `npm test` → `npm run build` → ручной QA.
-
-## Дополнительный проход после передачи исходного SVG TRIOZ
-
-Источник фирменного знака из предоставленного SVG (`potrace`) использован без перерисовки геометрии: контуры встроены в `components/icons.tsx` и сохранены в `public/trioz-logo.svg`. Для визуального соответствия лендингу добавлен бирюзово-белый градиент из палитры проекта, а в шапке — hover/focus glow и лёгкий сдвиг градиентных цветов; при `prefers-reduced-motion` переходы отключаются. PNG-превью в `/mnt/data/trioz_logo_adapted_preview.png` создано из этого SVG только для визуальной проверки.
-
-Дополнительно усилены поисковая и административная части: появился `middleware.ts` с `X-Robots-Tag: noindex, nofollow, noarchive` для `/enter`, `/admin`, `/dashboard`, `/login`; корневая страница получает динамические title/description из настроек БД; добавлен `viewport` с dark theme-color; в списке клиентов админки показывается последняя заявка по email с телефоном, компанией, услугой и комментарием. Исправлено формирование plain-text SMTP письма — теперь переносы строк реальные, а не литерал `\\n`.
-
-Фактически выполненная локальная проверка после этих изменений: исходный SVG успешно распарсен как XML; все `.ts/.tsx/.mts/.cts` в проекте прошли синтаксический разбор TypeScript без parse diagnostics. Полный dependency-aware lint/typecheck/build/test по-прежнему не утверждается выполненным без установки npm-зависимостей: в sandbox отсутствуют `node_modules`, а попытка получить пакеты ранее упиралась в недоступность npm registry.
+Не применять `pm2 delete all`, `pm2 kill` или `pm2 flush`.

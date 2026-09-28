@@ -100,10 +100,38 @@ npm run dev
 Production:
 
 ```bash
+npm install
+# задайте .env с DATABASE_URL, SESSION_SECRET и SMTP/ADMIN_* секретами
 npm run db:deploy
 npm run build
-npm run start
+pm2 start ecosystem.config.cjs --update-env
+pm2 save
 ```
+
+Для production `DATABASE_URL` обязателен уже на этапе `db:deploy`/`build`; проект использует PostgreSQL. Конфигурация `ecosystem.config.cjs` запускает только приложение с именем `tzbiz` в одном fork-процессе и не содержит секретов.
+
+### PM2: удалить только старый `tzbiz`
+
+Проверить список перед удалением:
+
+```bash
+pm2 ls
+```
+
+Удалить только процесс `tzbiz` и сохранить новое состояние PM2:
+
+```bash
+pm2 delete tzbiz
+pm2 save
+```
+
+Чтобы дополнительно удалить только его старые логи, не затрагивая остальные приложения:
+
+```bash
+rm -f ~/.pm2/logs/tzbiz-out.log ~/.pm2/logs/tzbiz-error.log
+```
+
+Не используйте `pm2 delete all`, `pm2 kill` или `pm2 flush`: они затрагивают другие процессы/логи.
 
 ## Prisma и миграции
 

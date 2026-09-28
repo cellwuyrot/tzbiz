@@ -4,8 +4,20 @@ import path from "node:path";
 import process from "node:process";
 
 const root = process.cwd();
-const databaseUrl = process.env.DATABASE_URL ?? "file:../data/dev.db";
+const configuredDatabaseUrl = process.env.DATABASE_URL?.trim();
+const isProduction = process.env.NODE_ENV === "production";
+
+if (isProduction && !configuredDatabaseUrl) {
+  throw new Error("DATABASE_URL is required when NODE_ENV=production.");
+}
+
+const databaseUrl = configuredDatabaseUrl || "file:../data/dev.db";
 const isPostgres = /^postgres(ql)?:/i.test(databaseUrl);
+
+if (isProduction && !isPostgres) {
+  throw new Error("Production DATABASE_URL must use PostgreSQL (postgres:// or postgresql://).");
+}
+
 const provider = isPostgres ? "postgresql" : "sqlite";
 const source = path.join(root, "prisma", isPostgres ? "schema.postgresql.prisma" : "schema.sqlite.prisma");
 const target = path.join(root, "prisma", "schema.prisma");
