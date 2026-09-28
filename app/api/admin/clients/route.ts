@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 
 function generatedPassword() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
-  return Array.from(crypto.randomBytes(18), (byte) => alphabet[byte % alphabet.length]).join("");
+  return Array.from({ length: 18 }, () => alphabet[crypto.randomInt(alphabet.length)]).join("");
 }
 
 export async function GET() {
