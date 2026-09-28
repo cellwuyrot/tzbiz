@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: "tzbiz",
-      cwd: __dirname,
+      cwd: "/var/www/tzbiz",
       script: "npm",
       args: "start",
       exec_mode: "fork",
@@ -12,6 +12,7 @@ module.exports = {
       time: true,
       env: {
         NODE_ENV: "production",
+        PORT: 3001,
       },
     },
   ],
