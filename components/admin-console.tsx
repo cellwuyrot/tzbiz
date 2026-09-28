@@ -747,8 +747,8 @@ function ProjectFields({
   fileId,
 }: {
   clients: Client[];
-  values: { title: string; description: string; projectUrl: string; status: string; isPublic: boolean; clientId: string };
-  setValues: React.Dispatch<React.SetStateAction<{ title: string; description: string; projectUrl: string; status: string; isPublic: boolean; clientId: string }>>;
+  values: { title: string; description: string; projectUrl: string; status: Project["status"]; isPublic: boolean; clientId: string };
+  setValues: React.Dispatch<React.SetStateAction<{ title: string; description: string; projectUrl: string; status: Project["status"]; isPublic: boolean; clientId: string }>>;
   fileId: string;
 }) {
   return (
@@ -767,7 +767,7 @@ function ProjectFields({
       </div>
       <div>
         <label className="mb-2 block type-ui font-semibold text-text" htmlFor={`${fileId}-status`}>Статус</label>
-        <select id={`${fileId}-status`} className="field" value={values.status} onChange={(e) => setValues((prev) => ({ ...prev, status: e.target.value }))}>
+        <select id={`${fileId}-status`} className="field" value={values.status} onChange={(e) => setValues((prev) => ({ ...prev, status: e.target.value as "IN_PROGRESS" | "DONE" | "SUPPORT" }))}>
           {PROJECT_STATUSES.map((status) => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}
         </select>
       </div>
@@ -787,8 +787,22 @@ function ProjectFields({
 }
 
 function ProjectCreateForm({ clients, onCreated, onError }: { clients: Client[]; onCreated: (project: Project) => void; onError: (message: string) => void }) {
-  const blank = { title: "", description: "", projectUrl: "", status: "IN_PROGRESS", isPublic: false, clientId: "" };
-  const [values, setValues] = useState(blank);
+  const blank: {
+    title: string;
+    description: string;
+    projectUrl: string;
+    status: Project["status"];
+    isPublic: boolean;
+    clientId: string;
+  } = {
+    title: "",
+    description: "",
+    projectUrl: "",
+    status: "IN_PROGRESS",
+    isPublic: false,
+    clientId: "",
+  };
+  const [values, setValues] = useState<typeof blank>(blank);
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
