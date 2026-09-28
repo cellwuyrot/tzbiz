@@ -18,8 +18,7 @@ export async function POST(request: NextRequest) {
   if (!limit.allowed) return jsonError("Слишком много попыток. Повторите позже.", 429, { "Retry-After": String(limit.retryAfter) });
 
   const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
-  const valid = user ? await bcrypt.compare(parsed.data.password, user.passwordHash) : false;
-  if (!valid) {
+  if (!user || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
     recordLoginFailure(key);
     return jsonError("Неверный email или пароль.", 401);
   }
