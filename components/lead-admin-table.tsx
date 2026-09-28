@@ -4,7 +4,7 @@ import { useState } from "react";
 import { LEAD_STATUSES, LEAD_STATUS_LABELS } from "@/lib/lead-status";
 import { TrashIcon } from "./icons";
 
-type Lead = {
+export type Lead = {
   id: string;
   name: string;
   email: string;
@@ -15,6 +15,7 @@ type Lead = {
   message: string;
   status: (typeof LEAD_STATUSES)[number];
   createdAt: string;
+  updatedAt: string;
 };
 
 async function csrfToken() {

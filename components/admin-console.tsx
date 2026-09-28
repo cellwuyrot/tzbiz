@@ -5,7 +5,7 @@ import { PROJECT_STATUSES, STATUS_LABELS } from "@/lib/constants";
 import type { ServiceView } from "@/lib/service-content";
 import { LogoMark, ArrowUpRight } from "./icons";
 import { LogoutButton } from "./logout-button";
-import { LeadAdminTable } from "./lead-admin-table";
+import { LeadAdminTable, type Lead } from "./lead-admin-table";
 
 type Client = { id: string; name: string; email: string; createdAt: string };
 type Project = {
@@ -20,19 +20,6 @@ type Project = {
   createdAt: string;
   updatedAt: string;
   client: { id: string; name: string; email: string } | null;
-};
-type Lead = {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  company: string;
-  serviceTitle: string;
-  service: { slug: string; title: string } | null;
-  message: string;
-  status: "NEW" | "IN_PROGRESS" | "DONE";
-  createdAt: string;
-  updatedAt: string;
 };
 type SiteSettings = {
   id: string;
