@@ -65,17 +65,28 @@ ADMIN_EMAIL="admin@example.com"
 ADMIN_PASSWORD="replace-with-a-strong-password-of-at-least-10-characters"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
-# Почта для уведомлений о заявках
-SMTP_HOST="smtp.example.com"
+# Почта для уведомлений о заявках — основной путь, как в основном проекте
+SMTP_SERVICE_URL=""
+SMTP_SERVICE_KEY=""
+SMTP_FROM=""
+
+# Резервный прямой SMTP-путь
+SMTP_HOST=""
 SMTP_PORT="465"
 SMTP_SECURE="true"
 SMTP_USER="info@trioz.ru"
-SMTP_PASS="replace-with-mailbox-password"
+SMTP_PASSWORD=""
+SMTP_PASS=""
+
 EMAIL_FROM="info@trioz.ru"
 LEADS_EMAIL_TO="info@trioz.ru"
 ```
 
 `ADMIN_PASSWORD` должен содержать минимум 10 символов. `SESSION_SECRET` должен быть длинным случайным секретом; в production используйте отдельный секрет.
+
+### Почта заявок в production
+
+Используйте тот же почтовый HTTP-сервис, что и основной проект. В `.env` лендинга задайте точное значение `SMTP_SERVICE_URL` из рабочего `.env` основного проекта и действующий `SMTP_SERVICE_KEY` из раздела «Сайты → API ключ» почтового сервиса. Для получателя оставьте `LEADS_EMAIL_TO="info@trioz.ru"`. `SMTP_FROM` задавайте только если ключ сервиса разрешает отправку от `info@trioz.ru`; иначе оставьте пустым — сервис вернёт разрешённый адрес отправителя сам. Пароль от `info@trioz.ru` для основного пути не нужен.
 
 ### PostgreSQL
 
@@ -101,7 +112,8 @@ Production:
 
 ```bash
 npm install
-# задайте .env с DATABASE_URL, SESSION_SECRET и SMTP/ADMIN_* секретами
+# задайте .env с DATABASE_URL, SESSION_SECRET, ADMIN_* и SMTP_SERVICE_*
+# (или резервным SMTP_* подключением)
 npm run db:deploy
 npm run build
 pm2 start ecosystem.config.cjs --update-env
@@ -195,7 +207,7 @@ npm run db:seed
 
 На лендинге есть форма «Давайте обсудим ваш проект» с обязательными именем, email, телефоном, услугой, комментарием и согласием на обработку данных. Публичный endpoint проверяет Zod-схему, выбранную опубликованную услугу, same-origin, honeypot и rate limit (до 4 заявок с одного IP за 15 минут в пределах инстанса).
 
-Новая заявка сначала сохраняется в БД, затем отправляется SMTP-сообщением на `LEADS_EMAIL_TO` (по умолчанию `info@trioz.ru`); `from` по умолчанию `info@trioz.ru`, `replyTo` — email клиента. Если SMTP недоступен, заявка не теряется: она остаётся в админ-панели, ошибка уведомления пишется в server log. Для production SMTP-учётные данные должны принадлежать ящику `info@trioz.ru` или разрешённой для отправки учётной записи.
+Новая заявка сначала сохраняется в БД, затем отправляется уведомление на `LEADS_EMAIL_TO` (по умолчанию `info@trioz.ru`). Основной путь отправки — почтовый HTTP-сервис TrioZ, как в основном проекте: `SMTP_SERVICE_URL` + `SMTP_SERVICE_KEY`; сервис получает отправителя, выполняет relay/DKIM и возвращает приложению результат. Если эта пара не задана, лендинг использует совместимый резервный путь через прямой SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`). Если почта недоступна, заявка не теряется: она остаётся в админ-панели, а ошибка уведомления пишется в server log.
 
 ## SEO, поиск и навигация
 
@@ -275,6 +287,6 @@ node --check scripts/seed.mjs
 
 ## Заявки и почта
 
-Форма на лендинге сохраняет заявку в `LeadRequest` и отправляет уведомление через SMTP на `LEADS_EMAIL_TO` (по умолчанию `info@trioz.ru`). Для production SMTP-подключение должно быть настроено с реквизитами ящика `info@trioz.ru` либо учётной записи, которой разрешена отправка от его имени. Если SMTP временно недоступен, заявка не удаляется и остаётся доступной в админ-панели.
+Форма на лендинге сохраняет заявку в `LeadRequest` и отправляет уведомление на `LEADS_EMAIL_TO` (по умолчанию `info@trioz.ru`). В production рекомендуется тот же путь, что используется в основном проекте: `SMTP_SERVICE_URL` и `SMTP_SERVICE_KEY` почтового сервиса TrioZ. При их отсутствии поддерживается прямой SMTP через `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASSWORD`. Если отправка временно недоступна, заявка не удаляется и остаётся доступной в админ-панели.
 
 Администратор видит заявки в разделе «Заявки», а в разделе «Клиенты» дополнительно видны данные последней заявки, сопоставленной по email: телефон, компания, выбранная услуга и комментарий.

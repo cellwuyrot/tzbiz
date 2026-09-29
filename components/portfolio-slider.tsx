@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { ChevronLeft, ChevronRight } from "./icons";
 
 type PortfolioProject = {
@@ -12,37 +12,9 @@ type PortfolioProject = {
 
 export function PortfolioSlider({ projects }: { projects: PortfolioProject[] }) {
   const [index, setIndex] = useState(0);
-  const [slideStep, setSlideStep] = useState(0);
-  const firstSlideRef = useRef<HTMLElement | null>(null);
-
-  const measureSlideStep = useCallback(() => {
-    const slide = firstSlideRef.current;
-    if (!slide) return;
-
-    const track = slide.parentElement;
-    if (!track) return;
-
-    const gap = Number.parseFloat(window.getComputedStyle(track).gap || "0");
-    setSlideStep(slide.getBoundingClientRect().width + (Number.isFinite(gap) ? gap : 0));
-  }, []);
-
-  useEffect(() => {
-    measureSlideStep();
-
-    const slide = firstSlideRef.current;
-    if (!slide || typeof ResizeObserver === "undefined") return;
-
-    const observer = new ResizeObserver(measureSlideStep);
-    observer.observe(slide);
-    return () => observer.disconnect();
-  }, [measureSlideStep, projects.length]);
 
   const move = useCallback((delta: number) => {
     setIndex((current) => Math.min(Math.max(current + delta, 0), projects.length - 1));
-  }, [projects.length]);
-
-  useEffect(() => {
-    setIndex((current) => Math.min(current, Math.max(projects.length - 1, 0)));
   }, [projects.length]);
 
   if (!projects.length) {
@@ -64,16 +36,9 @@ export function PortfolioSlider({ projects }: { projects: PortfolioProject[] }) 
       }}
     >
       <div className="overflow-hidden">
-        <div
-          className="portfolio-track"
-          style={{ transform: `translate3d(-${index * slideStep}px, 0, 0)` }}
-        >
+        <div className="portfolio-track" style={{ transform: `translateX(calc(-${index} * (min(78vw, 780px) + 18px)))` }}>
           {projects.map((project, projectIndex) => (
-            <article
-              key={project.id}
-              ref={projectIndex === 0 ? firstSlideRef : undefined}
-              className="portfolio-slide"
-            >
+            <article key={project.id} className="portfolio-slide">
               <a
                 href={project.projectUrl}
                 target="_blank"
