@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ServiceView } from "@/lib/service-content";
+import { REQUEST_SERVICE_EVENT } from "@/lib/request-service";
 import { ArrowUpRight } from "./icons";
 
 export function LeadForm({ services, initialServiceSlug }: { services: ServiceView[]; initialServiceSlug?: string }) {
@@ -20,6 +21,15 @@ export function LeadForm({ services, initialServiceSlug }: { services: ServiceVi
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    function choose(event: Event) {
+      const slug = (event as CustomEvent<{ serviceSlug?: string }>).detail?.serviceSlug;
+      if (slug && services.some(service => service.slug === slug)) setValues(previous => ({ ...previous, serviceSlug: slug }));
+    }
+    window.addEventListener(REQUEST_SERVICE_EVENT, choose);
+    return () => window.removeEventListener(REQUEST_SERVICE_EVENT, choose);
+  }, [services]);
 
   function update(name: keyof typeof values, value: string | boolean) {
     setValues((previous) => ({ ...previous, [name]: value }));

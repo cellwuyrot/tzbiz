@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LEAD_STATUSES, LEAD_STATUS_LABELS } from "@/lib/lead-status";
+import { effectiveMailStatus, MAIL_ERROR_LABELS, MAIL_STATUS_LABELS, MAIL_RETRY_DELAY_MS, type MailChannel, type MailStatus } from "@/lib/mail-status";
 import { TrashIcon } from "./icons";
 
 export type Lead = {
@@ -14,6 +15,14 @@ export type Lead = {
   service: { slug: string; title: string } | null;
   message: string;
   status: (typeof LEAD_STATUSES)[number];
+  clientEmailStatus?: MailStatus;
+  internalEmailStatus?: MailStatus;
+  clientEmailAttempts?: number;
+  internalEmailAttempts?: number;
+  clientEmailAttemptedAt?: string | null;
+  internalEmailAttemptedAt?: string | null;
+  clientEmailErrorCategory?: string | null;
+  internalEmailErrorCategory?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -28,6 +37,11 @@ async function csrfToken() {
 export function LeadAdminTable({ initialLeads, onError, onChange }: { initialLeads: Lead[]; onError: (message: string) => void; onChange?: (leads: Lead[]) => void }) {
   const [leads, setLeads] = useState(initialLeads);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   async function updateStatus(id: string, status: Lead["status"]) {
     setLoadingId(id);
@@ -72,6 +86,38 @@ export function LeadAdminTable({ initialLeads, onError, onChange }: { initialLea
     }
   }
 
+  async function retry(id: string, channel: MailChannel) {
+    if (!window.confirm("Повтор отправит письмо выбранного канала. При неизвестном результате или отсутствии истории возможно дублирование. Продолжить?")) return;
+    setLoadingId(id); onError("");
+    try {
+      const response = await fetch(`/api/admin/leads/${id}/notifications/retry`, {
+        method: "POST", headers: { "content-type": "application/json", "x-csrf-token": await csrfToken() },
+        body: JSON.stringify({ channel, confirmDuplicateRisk: true }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Повтор не выполнен.");
+      if (data.lead) setLeads(prev => { const next = prev.map(lead => lead.id === id ? data.lead : lead); onChange?.(next); return next; });
+      if (!data.recorded) onError("Результат не сохранён. Сначала проверьте ящики, чтобы избежать дублирования.");
+      else if (!data.ok) onError("SMTP не подтвердил приём. Смотрите состояние выбранного канала.");
+    } catch (cause) { onError(cause instanceof Error ? cause.message : "Повтор не выполнен."); }
+    finally { setLoadingId(null); }
+  }
+
+  function mailCell(lead: Lead, channel: MailChannel) {
+    const rawStatus = channel === "client" ? lead.clientEmailStatus : lead.internalEmailStatus;
+    const attempted = channel === "client" ? lead.clientEmailAttemptedAt : lead.internalEmailAttemptedAt;
+    const attempts = channel === "client" ? lead.clientEmailAttempts : lead.internalEmailAttempts;
+    const category = channel === "client" ? lead.clientEmailErrorCategory : lead.internalEmailErrorCategory;
+    const status = effectiveMailStatus(rawStatus ?? "UNTRACKED", attempted, now);
+    const coolingDown = Boolean(attempted && new Date(attempted).getTime() > now - MAIL_RETRY_DELAY_MS);
+    return <div className="min-w-52 space-y-2 type-ui">
+      <p className="font-semibold text-text">{channel === "client" ? "Клиент" : "Команда"}: {MAIL_STATUS_LABELS[status]}</p>
+      <p className="text-subtle">Попыток: {attempts ?? 0}{attempted ? ` · ${new Date(attempted).toLocaleString("ru-RU")}` : ""}</p>
+      {category ? <p className="text-muted">{MAIL_ERROR_LABELS[category] || "Ошибка"}</p> : null}
+      <button type="button" className="button-secondary" disabled={loadingId === lead.id || status === "SMTP_ACCEPTED" || status === "PENDING" || coolingDown} onClick={() => retry(lead.id, channel)}>Повторить: {channel === "client" ? "клиент" : "команда"}</button>
+    </div>;
+  }
+
   if (!leads.length) {
     return <div className="panel p-6 type-body text-muted">Заявок пока нет. Новые заявки появятся здесь после отправки формы на сайте.</div>;
   }
@@ -82,7 +128,7 @@ export function LeadAdminTable({ initialLeads, onError, onChange }: { initialLea
         <table className="min-w-[1080px] w-full border-collapse text-left">
           <thead className="bg-panel-2">
             <tr>
-              {['Дата', 'Клиент', 'Контакты', 'Услуга', 'Особенности / комментарии', 'Статус', ''].map((label) => (
+              {['Дата', 'Клиент', 'Контакты', 'Услуга', 'Особенности / комментарии', 'Статус', 'Email-уведомления', ''].map((label) => (
                 <th key={label} scope="col" className="border-b border-border px-5 py-4 type-ui font-semibold text-muted">{label}</th>
               ))}
             </tr>
@@ -113,6 +159,11 @@ export function LeadAdminTable({ initialLeads, onError, onChange }: { initialLea
                   >
                     {LEAD_STATUSES.map((status) => <option key={status} value={status}>{LEAD_STATUS_LABELS[status]}</option>)}
                   </select>
+                </td>
+                <td className="border-b border-border px-5 py-5 space-y-5">
+                  {mailCell(lead, "client")}
+                  {mailCell(lead, "internal")}
+                  <p className="type-ui text-subtle">Принято SMTP ≠ доставлено в ящик.</p>
                 </td>
                 <td className="border-b border-border px-5 py-5">
                   <button type="button" className="icon-button text-danger" disabled={loadingId === lead.id} onClick={() => remove(lead.id)} aria-label={`Удалить заявку ${lead.name}`}>

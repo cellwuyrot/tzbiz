@@ -72,6 +72,6 @@ describe("lead requests", () => {
       select: { id: true, slug: true, title: true },
     });
     expect(prisma.leadRequest.create).toHaveBeenCalled();
-    expect(sendLeadNotification).toHaveBeenCalledWith(expect.objectContaining({ serviceSlug: "crm-integration" }));
+    expect(sendLeadNotification).toHaveBeenCalledWith(expect.objectContaining({ serviceSlug: "crm-integration" }), expect.any(Function));
   });
 });

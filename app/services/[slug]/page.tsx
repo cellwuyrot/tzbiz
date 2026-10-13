@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { getServiceBySlug, getPublishedServices } from "@/lib/service-content";
 import { ArrowUpRight, ChevronRight } from "@/components/icons";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { RequestServiceLink } from "@/components/request-service-link";
 import { SiteHeader } from "@/components/site-header";
 
 export const dynamic = "force-dynamic";
@@ -83,7 +84,7 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
             )}
             <div className="mt-5 panel p-6">
               <p className="type-body text-muted">Готовы обсудить задачу по этой услуге?</p>
-              <a className="cta-dark mt-5 w-full" href={`https://trioz.ru/connect?service=${encodeURIComponent(service.slug)}`} target="_blank" rel="noopener noreferrer">Оставить заявку <ArrowUpRight /></a>
+              <RequestServiceLink className="cta-dark mt-5 w-full" serviceSlug={service.slug}>Оставить заявку <ArrowUpRight /></RequestServiceLink>
             </div>
           </aside>
         </div>

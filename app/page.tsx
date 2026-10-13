@@ -11,6 +11,7 @@ import { PortfolioSection } from "@/components/portfolio-section";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { ServiceCatalog } from "@/components/service-catalog";
 import { ServiceDock } from "@/components/service-dock";
+import { RequestServiceLink } from "@/components/request-service-link";
 import { SiteHeader } from "@/components/site-header";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +51,7 @@ async function getPublicProjects() {
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ service?: string | string[] }>;
+  searchParams: Promise<{ service?: string | string[]; requestService?: string | string[] }>;
 }) {
   const [services, settings, projects] = await Promise.all([
     getPublishedServices(),
@@ -58,7 +59,10 @@ export default async function HomePage({
     getPublicProjects(),
   ]);
 
-  const serviceParam = (await searchParams).service;
+  const query = await searchParams;
+  const requestParam = query.requestService;
+  const requestedSlug = Array.isArray(requestParam) ? requestParam[0] : requestParam;
+  const serviceParam = query.service;
   const serviceSlug = Array.isArray(serviceParam) ? serviceParam[0] : serviceParam;
   const selectedService = getServiceBySlug(services, serviceSlug);
 
@@ -85,9 +89,9 @@ export default async function HomePage({
 
             <ScrollReveal delay={180}>
               <div className="mt-9 flex flex-wrap items-center gap-3">
-                <a className="cta-dark" href="https://trioz.ru/connect" target="_blank" rel="noopener noreferrer">
+                <RequestServiceLink className="cta-dark">
                   Обсудить задачу <ArrowUpRight />
-                </a>
+                </RequestServiceLink>
                 <a className="inline-flex min-h-12 items-center gap-2 type-ui font-semibold text-muted transition-colors hover:text-text" href="#services">
                   Посмотреть направления <ChevronRight />
                 </a>
@@ -157,7 +161,7 @@ export default async function HomePage({
             <p className="mt-5 max-w-md type-lead text-muted">Опишите задачу и особенности проекта. После сохранения заявки система попытается отправить подтверждение вам и уведомление команде TRIOZ.</p>
           </ScrollReveal>
           <ScrollReveal delay={80}>
-            <LeadForm services={services} initialServiceSlug={serviceSlug} />
+            <LeadForm services={services} initialServiceSlug={requestedSlug ?? serviceSlug} />
           </ScrollReveal>
         </div>
       </section>

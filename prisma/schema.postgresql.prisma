@@ -29,6 +29,14 @@ enum LeadStatus {
   DONE
 }
 
+enum MailNotificationStatus {
+  UNTRACKED
+  PENDING
+  SMTP_ACCEPTED
+  FAILED
+  UNKNOWN
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -109,6 +117,14 @@ model LeadRequest {
   serviceTitle  String
   message       String
   status        LeadStatus @default(NEW)
+  clientEmailStatus MailNotificationStatus @default(UNTRACKED)
+  internalEmailStatus MailNotificationStatus @default(UNTRACKED)
+  clientEmailAttempts Int @default(0)
+  internalEmailAttempts Int @default(0)
+  clientEmailAttemptedAt DateTime?
+  internalEmailAttemptedAt DateTime?
+  clientEmailErrorCategory String?
+  internalEmailErrorCategory String?
   privacyConsentAt DateTime
   agreementAcceptedAt DateTime?
   agreementVersion String?
@@ -131,4 +147,11 @@ model Session {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model IntegrationCheck {
+  key String @id
+  status String
+  checkedAt DateTime @default(now())
+  errorCategory String?
 }
