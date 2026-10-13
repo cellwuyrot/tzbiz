@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ServiceView } from "@/lib/service-content";
+import { RequestServiceLink } from "./request-service-link";
 import { ArrowUpRight, ChevronLeft, ChevronRight, XIcon } from "./icons";
 
 export function ServiceModal({
@@ -145,14 +146,12 @@ export function ServiceModal({
             </div>
 
             <div className="mt-9 flex flex-wrap gap-3">
-              <a
+              <RequestServiceLink
                 className="button-primary"
-                href={`https://trioz.ru/connect?service=${encodeURIComponent(service.slug)}`}
-                target="_blank"
-                rel="noopener noreferrer"
+                serviceSlug={service.slug}
               >
                 Заказать услугу <ArrowUpRight />
-              </a>
+              </RequestServiceLink>
               <a className="button-secondary" href={`/services/${encodeURIComponent(service.slug)}`}>Подробнее как отдельная страница <ChevronRight /></a>
               <button type="button" className="button-secondary" onClick={() => onChange(previousService.slug)} disabled={services.length < 2}>
                 <ChevronLeft /> Предыдущая

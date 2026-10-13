@@ -36,7 +36,7 @@ export default async function AdminPage() {
         initialClients={clients.map((client) => ({ ...client, createdAt: client.createdAt.toISOString() }))}
         initialProjects={projects.map((project) => ({ ...project, createdAt: project.createdAt.toISOString(), updatedAt: project.updatedAt.toISOString() }))}
         initialServices={services}
-        initialLeads={leads.map((lead) => ({ ...lead, createdAt: lead.createdAt.toISOString(), updatedAt: lead.updatedAt.toISOString() }))}
+        initialLeads={leads.map((lead) => ({ ...lead, createdAt: lead.createdAt.toISOString(), updatedAt: lead.updatedAt.toISOString(), clientEmailAttemptedAt: lead.clientEmailAttemptedAt?.toISOString() ?? null, internalEmailAttemptedAt: lead.internalEmailAttemptedAt?.toISOString() ?? null }))}
         initialSettings={{
           id: settings.id,
           tagline: settings.tagline,

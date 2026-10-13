@@ -1,6 +1,6 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-vi.mock("@/lib/db", () => ({ prisma: { service: { findFirst: vi.fn() }, leadRequest: { create: vi.fn() } } }));
+vi.mock("@/lib/db", () => ({ prisma: { service: { findFirst: vi.fn() }, leadRequest: { create: vi.fn(), updateMany: vi.fn() } } }));
 vi.mock("@/lib/mailer", () => ({ sendLeadNotification: vi.fn() }));
 import { prisma } from "@/lib/db";
 import { sendLeadNotification } from "@/lib/mailer";
@@ -15,6 +15,7 @@ function request(data: unknown = body, origin = "http://localhost:3000", ip = `t
 describe("lead durability and consent", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(prisma.leadRequest.updateMany).mockResolvedValue({ count: 1 });
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.mocked(prisma.service.findFirst).mockResolvedValue({ id: "service-1", slug: body.serviceSlug, title: "Test" } as never);
     vi.mocked(prisma.leadRequest.create).mockResolvedValue({ id: "lead-1", ...body, serviceTitle: "Test", createdAt: new Date() } as never);
@@ -39,6 +40,17 @@ describe("lead durability and consent", () => {
     const response = await POST(request());
     expect(response.status).toBe(201); expect(await response.json()).toEqual({ ok: true, emailNotified: false });
     expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
+  });
+  it("persists independent channel outcomes after saving", async () => {
+    vi.mocked(sendLeadNotification).mockImplementation(async (_lead, callback) => {
+      expect(prisma.leadRequest.create).toHaveBeenCalledTimes(1);
+      await callback!("client", { status: "FAILED", errorCategory: "AUTH" });
+      await callback!("internal", { status: "SMTP_ACCEPTED", errorCategory: null });
+      return { clientNotified: false, internalNotified: true };
+    });
+    expect((await POST(request())).status).toBe(201);
+    expect(prisma.leadRequest.updateMany).toHaveBeenCalledWith({ where: { id: "lead-1", clientEmailStatus: "PENDING", clientEmailAttempts: 1 }, data: { clientEmailStatus: "FAILED", clientEmailErrorCategory: "AUTH" } });
+    expect(prisma.leadRequest.updateMany).toHaveBeenCalledWith({ where: { id: "lead-1", internalEmailStatus: "PENDING", internalEmailAttempts: 1 }, data: { internalEmailStatus: "SMTP_ACCEPTED", internalEmailErrorCategory: null } });
   });
   it("records server timestamps and document versions", async () => {
     await POST(request());

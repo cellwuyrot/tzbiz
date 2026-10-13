@@ -1,6 +1,8 @@
 import nodemailer from "nodemailer";
+import { getMailConfig, MailConfigurationError } from "./mailer-config";
+import type { MailChannel, MailResult } from "./mail-status";
 
-type LeadNotification = {
+export type LeadNotification = {
   id: string;
   name: string;
   email: string;
@@ -13,27 +15,28 @@ type LeadNotification = {
 };
 
 function getTransport() {
-  const host = process.env.SMTP_HOST;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-  if (!host || !user || !pass) throw new Error("SMTP is not configured.");
-  const port = Number(process.env.SMTP_PORT ?? 465);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Invalid SMTP port.");
-  const configuredSecure = process.env.SMTP_SECURE;
-  if (configuredSecure !== undefined && configuredSecure !== "true" && configuredSecure !== "false") {
-    throw new Error("Invalid SMTP secure setting.");
-  }
-  const secure = configuredSecure === undefined ? port === 465 : configuredSecure === "true";
+  const config = getMailConfig();
   return nodemailer.createTransport({
-    host,
-    port,
-    secure,
-    requireTLS: !secure,
-    auth: { user, pass },
-    connectionTimeout: 10_000,
-    greetingTimeout: 10_000,
-    socketTimeout: 10_000,
+    host: config.host, port: config.port, secure: config.secure, requireTLS: !config.secure,
+    auth: { user: config.user, pass: config.pass },
+    connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 10_000,
   });
+}
+
+function failure(error: unknown): MailResult {
+  const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
+  if (error instanceof MailConfigurationError || code === "CONFIG") return { status: "FAILED", errorCategory: "CONFIG" };
+  if (["ETIMEDOUT", "ESOCKET"].includes(code)) return { status: "UNKNOWN", errorCategory: "TIMEOUT" };
+  const categories: Record<string, string> = { EAUTH: "AUTH", ETLS: "TLS", EENVELOPE: "RECIPIENT", RECIPIENT: "RECIPIENT", ECONNECTION: "CONNECTION", ECONNREFUSED: "CONNECTION", ENOTFOUND: "CONNECTION", ESMTP: "SMTP" };
+  return { status: categories[code] ? "FAILED" : "UNKNOWN", errorCategory: categories[code] || "UNKNOWN" };
+}
+
+async function sendSafely(transport: ReturnType<typeof getTransport>, message: Parameters<typeof transport.sendMail>[0]): Promise<MailResult> {
+  try {
+    const info = await transport.sendMail(message);
+    if (!info.accepted?.length || info.rejected?.length) return { status: "FAILED", errorCategory: "RECIPIENT" };
+    return { status: "SMTP_ACCEPTED", errorCategory: null };
+  } catch (error) { return failure(error); }
 }
 
 function escapeHtml(value: string) {
@@ -47,11 +50,8 @@ function template(title: string, paragraphs: string[]) {
 
 // One existing SMTP transport, two separate messages. Fulfilled means SMTP accepted,
 // not that the message reached the recipient's inbox. No SMTP details are logged.
-export async function sendLeadNotification(lead: LeadNotification) {
-  const from = process.env.EMAIL_FROM ?? "union@business.trioz.ru";
-  const internalTo = process.env.LEADS_EMAIL_TO ?? "info@trioz.ru";
-  const contact = process.env.EMAIL_REPLY_TO ?? "info@trioz.ru";
-  const transport = Promise.resolve().then(getTransport);
+function leadMessages(lead: LeadNotification) {
+  const { from, internalTo, replyTo: contact } = getMailConfig();
   const clientParagraphs = [
     `Здравствуйте, ${lead.name}! Спасибо за обращение в TRIOZ.`,
     `Номер заявки: ${lead.id}\nВыбранная услуга: ${lead.serviceTitle}`,
@@ -65,20 +65,78 @@ export async function sendLeadNotification(lead: LeadNotification) {
     `Услуга: ${lead.serviceTitle} (${lead.serviceSlug})`,
     `Описание задачи:\n${lead.message}`,
   ];
-  const messages = [
+  return [
     { from, to: lead.email, replyTo: contact, subject: `TRIOZ · Заявка ${lead.id.replace(/[\r\n]/g, " ")} получена`,
       text: ["Заявка получена", ...clientParagraphs].join("\n\n"), html: template("Заявка получена", clientParagraphs) },
     { from, to: internalTo, replyTo: lead.email, subject: `Новая заявка TRIOZ · ${lead.serviceTitle.replace(/[\r\n]/g, " ")}`,
       text: ["Новая заявка TRIOZ", ...internalParagraphs].join("\n\n"), html: template("Новая заявка TRIOZ", internalParagraphs) },
   ];
-  const results = await Promise.allSettled(messages.map(async (message) => {
-    const smtp = await transport;
-    const info = await smtp.sendMail(message);
-    if (!info.accepted?.length || info.rejected?.length) throw new Error("Recipient not accepted.");
+}
+
+// A single existing SMTP transport and two independent messages. The callback
+// records each result; database/logging failure cannot prevent the other send.
+export async function sendLeadNotification(lead: LeadNotification, onResult?: (channel: MailChannel, result: MailResult) => Promise<void>) {
+  let transport: ReturnType<typeof getTransport> | undefined;
+  const setup = Promise.resolve().then(() => { transport = getTransport(); return { transport, messages: leadMessages(lead) }; });
+  const settled = await Promise.allSettled((["client", "internal"] as const).map(async (channel, index) => {
+    let result: MailResult;
+    try {
+      const prepared = await setup;
+      result = await sendSafely(prepared.transport, prepared.messages[index]);
+    } catch (error) { result = failure(error); }
+    if (result.status !== "SMTP_ACCEPTED") console.warn("Lead notification not accepted", { leadId: lead.id, channel, category: result.errorCategory });
+    if (onResult) {
+      try { await onResult(channel, result); }
+      catch { console.error("Lead notification status not recorded", { leadId: lead.id, channel }); }
+    }
+    return result;
   }));
-  const clientNotified = results[0].status === "fulfilled";
-  const internalNotified = results[1].status === "fulfilled";
-  if (!clientNotified) console.warn("Lead client notification not accepted by SMTP");
-  if (!internalNotified) console.warn("Lead internal notification not accepted by SMTP");
-  return { clientNotified, internalNotified };
+  transport?.close();
+  return {
+    clientNotified: settled[0].status === "fulfilled" && settled[0].value.status === "SMTP_ACCEPTED",
+    internalNotified: settled[1].status === "fulfilled" && settled[1].value.status === "SMTP_ACCEPTED",
+  };
+}
+
+export async function sendLeadChannel(lead: LeadNotification, channel: MailChannel): Promise<MailResult> {
+  let transport: ReturnType<typeof getTransport> | undefined;
+  try {
+    transport = getTransport();
+    return await sendSafely(transport, leadMessages(lead)[channel === "client" ? 0 : 1]);
+  } catch (error) { return failure(error); }
+  finally { transport?.close(); }
+}
+
+export async function verifyMailConnection(): Promise<MailResult> {
+  let transport: ReturnType<typeof getTransport> | undefined;
+  try { transport = getTransport(); const verified = await transport.verify(); return verified === true ? { status: "SMTP_ACCEPTED", errorCategory: null } : { status: "FAILED", errorCategory: "CONNECTION" }; }
+  catch (error) { return failure(error); }
+  finally { transport?.close(); }
+}
+
+export async function sendMailDiagnostic(clientTo: string) {
+  let transport: ReturnType<typeof getTransport> | undefined;
+  const results = await Promise.allSettled(["client", "internal"].map(async channel => {
+    try {
+      const config = getMailConfig();
+      transport ??= getTransport();
+      const paragraphs = [
+        "Это диагностическое письмо, отправленное администратором TRIOZ Business. Заявка и заказ не создавались.",
+        channel === "client" ? "Проверяется клиентский канал уведомлений." : "Проверяется внутренний канал уведомлений команды.",
+        `Время проверки: ${new Date().toISOString()} (UTC)`,
+        `Контакт команды: ${config.replyTo}`,
+      ];
+      return await sendSafely(transport, {
+        from: config.from, to: channel === "client" ? clientTo : config.internalTo,
+        replyTo: channel === "client" ? config.replyTo : clientTo,
+        subject: `Тест SMTP TRIOZ Business · ${channel === "client" ? "клиентский канал" : "внутренний канал"}`,
+        text: paragraphs.join("\n\n"), html: template("Тест SMTP — не заявка", paragraphs),
+      });
+    } catch (error) { return failure(error); }
+  }));
+  transport?.close();
+  return {
+    client: results[0].status === "fulfilled" ? results[0].value : { status: "UNKNOWN" as const, errorCategory: "UNKNOWN" },
+    internal: results[1].status === "fulfilled" ? results[1].value : { status: "UNKNOWN" as const, errorCategory: "UNKNOWN" },
+  };
 }

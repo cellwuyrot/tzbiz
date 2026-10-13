@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { RequestServiceLink } from "./request-service-link";
 import { ArrowUpRight, LogoMark } from "./icons";
 
 export function SiteHeader({ basePath = "" }: { basePath?: string }) {
   const servicesHref = `${basePath}#services`;
   const projectsHref = `${basePath}#portfolio`;
   const processHref = `${basePath}#process`;
-  const contactHref = basePath ? "https://trioz.ru/connect" : "#contact";
+  const contactHref = `${basePath}#contact`;
 
   return (
     <header className="relative z-30">
@@ -23,13 +24,11 @@ export function SiteHeader({ basePath = "" }: { basePath?: string }) {
           <a href={processHref} className="type-ui text-muted hover:text-text">О компании</a>
           <a href={contactHref} className="type-ui text-muted hover:text-text">Контакты</a>
         </nav>
-        <a
-          href={contactHref}
-          {...(basePath ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+        <RequestServiceLink
           className="group inline-flex items-center gap-2 border-b border-border pb-1 type-ui font-semibold text-text transition-colors hover:border-accent"
         >
           Оставить заявку <ArrowUpRight />
-        </a>
+        </RequestServiceLink>
       </div>
     </header>
   );

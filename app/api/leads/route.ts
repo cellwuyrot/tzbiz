@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { leadRequestSchema } from "@/lib/validation";
 import { sendLeadNotification } from "@/lib/mailer";
 import { AGREEMENT_VERSION, PRIVACY_VERSION } from "@/lib/legal";
+import { initialMailState, recordMailResult } from "@/lib/lead-notifications";
 import { jsonError } from "@/lib/security";
 
 export const runtime = "nodejs";
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest) {
     const acceptedAt = new Date();
     const lead = await prisma.leadRequest.create({
       data: {
+        ...initialMailState(acceptedAt),
         name: parsed.data.name,
         email: parsed.data.email,
         phone: parsed.data.phone,
@@ -88,9 +90,10 @@ export async function POST(request: NextRequest) {
 
   let emailNotified = false;
   try {
-    const result = await sendLeadNotification(saved);
+    const result = await sendLeadNotification(saved, async (channel, outcome) => { await recordMailResult(saved.id, channel, 1, outcome); });
     emailNotified = result.clientNotified && result.internalNotified;
   } catch {
+    await Promise.allSettled((["client", "internal"] as const).map(channel => recordMailResult(saved.id, channel, 1, { status: "UNKNOWN", errorCategory: "UNKNOWN" })));
     console.error("Lead email notification failed");
   }
 

@@ -5,6 +5,7 @@ import { PROJECT_STATUSES, STATUS_LABELS } from "@/lib/constants";
 import type { ServiceView } from "@/lib/service-content";
 import { LogoMark, ArrowUpRight } from "./icons";
 import { LogoutButton } from "./logout-button";
+import { AdminIntegrations } from "./admin-integrations";
 import { LeadAdminTable, type Lead } from "./lead-admin-table";
 
 type Client = { id: string; name: string; email: string; createdAt: string };
@@ -82,7 +83,7 @@ export function AdminConsole({
   const [statusFilter, setStatusFilter] = useState("all");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
-  const [activeSection, setActiveSection] = useState<"services" | "projects" | "leads" | "clients" | "settings">("services");
+  const [activeSection, setActiveSection] = useState<"services" | "projects" | "leads" | "clients" | "settings" | "integrations">("services");
 
   const [creatingClient, setCreatingClient] = useState(false);
   const [clientName, setClientName] = useState("");
@@ -367,12 +368,15 @@ export function AdminConsole({
             ["leads", "Заявки"],
             ["clients", "Клиенты"],
             ["settings", "Настройки сайта"],
+            ["integrations", "Интеграции"],
           ] as const).map(([id, label]) => (
             <button key={id} type="button" className={activeSection === id ? "button-primary" : "button-secondary"} onClick={() => setActiveSection(id)}>
               {label}
             </button>
           ))}
         </nav>
+
+        {activeSection === "integrations" ? <AdminIntegrations /> : null}
 
         {activeSection === "services" ? (
           <section className="mt-10 grid gap-8 xl:grid-cols-[0.7fr_1.3fr]" aria-labelledby="services-admin-title">

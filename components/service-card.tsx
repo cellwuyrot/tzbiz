@@ -1,4 +1,5 @@
 import type { ServiceView } from "@/lib/service-content";
+import { RequestServiceLink } from "./request-service-link";
 import { ArrowUpRight, ServiceIcon } from "./icons";
 
 export function ServiceCard({ service, index, onOpen }: { service: ServiceView; index: number; onOpen: (slug: string, trigger: HTMLButtonElement) => void }) {
@@ -17,15 +18,13 @@ export function ServiceCard({ service, index, onOpen }: { service: ServiceView; 
           <p className="mt-2 max-w-3xl type-body text-muted">{service.shortDescription}</p>
         </button>
       </div>
-      <a
-        href={`https://trioz.ru/connect?service=${encodeURIComponent(service.slug)}`}
-        target="_blank"
-        rel="noopener noreferrer"
+      <RequestServiceLink
+        serviceSlug={service.slug}
         className="service-row__action type-ui font-semibold"
-        aria-label={`Заказать услугу «${service.title}»`}
+        ariaLabel={`Заказать услугу «${service.title}»`}
       >
         <span>Заказать</span><ArrowUpRight />
-      </a>
+      </RequestServiceLink>
       <div className="service-row__signal" aria-hidden="true" />
     </article>
   );
