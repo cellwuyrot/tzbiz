@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { leadRequestSchema } from "@/lib/validation";
 import { sendLeadNotification } from "@/lib/mailer";
+import { AGREEMENT_VERSION, PRIVACY_VERSION } from "@/lib/legal";
 import { jsonError } from "@/lib/security";
 
 export const runtime = "nodejs";
@@ -45,41 +46,52 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return jsonError("Проверьте заполненные поля формы.", 400);
   if (parsed.data.website) return jsonError("Заявка отклонена.", 400);
 
-  const service = await prisma.service.findFirst({
-    where: { slug: parsed.data.serviceSlug, isPublished: true },
-    select: { id: true, slug: true, title: true },
-  });
-  if (!service) return jsonError("Выбранная услуга недоступна.", 400);
-
-  const lead = await prisma.leadRequest.create({
-    data: {
-      name: parsed.data.name,
-      email: parsed.data.email,
-      phone: parsed.data.phone,
-      company: parsed.data.company,
-      serviceId: service.id,
-      serviceTitle: service.title,
-      message: parsed.data.message,
-      privacyConsentAt: new Date(),
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      company: true,
-      serviceTitle: true,
-      message: true,
-      createdAt: true,
-    },
-  });
-
-  let emailNotified = true;
+  let saved;
   try {
-    await sendLeadNotification({ ...lead, serviceSlug: service.slug });
-  } catch (error) {
-    emailNotified = false;
-    console.error("Lead email notification failed", error);
+    const service = await prisma.service.findFirst({
+      where: { slug: parsed.data.serviceSlug, isPublished: true },
+      select: { id: true, slug: true, title: true },
+    });
+    if (!service) return jsonError("Выбранная услуга недоступна.", 400);
+  
+    const acceptedAt = new Date();
+    const lead = await prisma.leadRequest.create({
+      data: {
+        name: parsed.data.name,
+        email: parsed.data.email,
+        phone: parsed.data.phone,
+        company: parsed.data.company,
+        serviceId: service.id,
+        serviceTitle: service.title,
+        message: parsed.data.message,
+        privacyConsentAt: acceptedAt,
+        agreementAcceptedAt: acceptedAt,
+        agreementVersion: AGREEMENT_VERSION,
+        privacyVersion: PRIVACY_VERSION,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        company: true,
+        serviceTitle: true,
+        message: true,
+        createdAt: true,
+      },
+    });
+    saved = { ...lead, serviceSlug: service.slug };
+  } catch {
+    console.error("Lead persistence failed");
+    return jsonError("Не удалось сохранить заявку. Попробуйте позже.", 500);
+  }
+
+  let emailNotified = false;
+  try {
+    const result = await sendLeadNotification(saved);
+    emailNotified = result.clientNotified && result.internalNotified;
+  } catch {
+    console.error("Lead email notification failed");
   }
 
   return NextResponse.json({ ok: true, emailNotified }, { status: 201 });

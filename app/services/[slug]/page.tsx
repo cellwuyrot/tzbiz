@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { siteUrl } from "@/lib/site-url";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getServiceBySlug, getPublishedServices } from "@/lib/service-content";
@@ -17,7 +18,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     title: service.title,
     description: service.shortDescription,
     alternates: { canonical: `/services/${service.slug}` },
-    openGraph: { title: `${service.title} — TRIOZ`, description: service.shortDescription, type: "website", url: `https://trioz.ru/services/${service.slug}` },
+    openGraph: { title: `${service.title} — TRIOZ`, description: service.shortDescription, type: "website", url: siteUrl(`/services/${service.slug}`) },
   };
 }
 
@@ -34,15 +35,15 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
         "@type": "Service",
         name: service.title,
         description: service.shortDescription,
-        url: `https://trioz.ru/services/${service.slug}`,
-        provider: { "@id": "https://trioz.ru/#organization" },
+        url: siteUrl(`/services/${service.slug}`),
+        provider: { "@id": siteUrl("/#organization") },
       },
       {
         "@type": "BreadcrumbList",
         itemListElement: [
-          { "@type": "ListItem", position: 1, name: "Главная", item: "https://trioz.ru/" },
-          { "@type": "ListItem", position: 2, name: "Услуги", item: "https://trioz.ru/#services" },
-          { "@type": "ListItem", position: 3, name: service.title, item: `https://trioz.ru/services/${service.slug}` },
+          { "@type": "ListItem", position: 1, name: "Главная", item: siteUrl("/") },
+          { "@type": "ListItem", position: 2, name: "Услуги", item: siteUrl("/#services") },
+          { "@type": "ListItem", position: 3, name: service.title, item: siteUrl(`/services/${service.slug}`) },
         ],
       },
     ],
@@ -94,6 +95,8 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
       <footer className="site-shell border-t border-border py-10 text-subtle">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between type-ui">
           <span>TRIOZ Digital systems</span>
+          <a href="/agreement" className="text-accent">Соглашение</a>
+          <a href="/privacy" className="text-accent">Политика данных</a>
           <a href="https://trioz.ru/connect" target="_blank" rel="noopener noreferrer" className="text-accent hover:text-text">Основной проект: trioz.ru/connect</a>
         </div>
       </footer>

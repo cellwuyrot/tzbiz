@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { siteUrl } from "@/lib/site-url";
 import { prisma } from "@/lib/db";
 import { getPublishedServices, getServiceBySlug } from "@/lib/service-content";
 import { getSiteSettingsOrDefaults } from "@/lib/site-settings";
@@ -23,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       title: `TRIOZ — ${settings.tagline}`,
       description: settings.heroSubtitle,
-      url: "https://trioz.ru/",
+      url: siteUrl("/"),
       type: "website",
     },
   };
@@ -153,7 +154,7 @@ export default async function HomePage({
           <ScrollReveal>
             <p className="eyebrow">Contact / Заявка</p>
             <h2 id="contact-title" className="type-h2 max-w-md text-text">Давайте обсудим ваш проект.</h2>
-            <p className="mt-5 max-w-md type-lead text-muted">Опишите задачу и особенности проекта. Заявка сохранится в админ-панели, а уведомление придёт на info@trioz.ru.</p>
+            <p className="mt-5 max-w-md type-lead text-muted">Опишите задачу и особенности проекта. После сохранения заявки система попытается отправить подтверждение вам и уведомление команде TRIOZ.</p>
           </ScrollReveal>
           <ScrollReveal delay={80}>
             <LeadForm services={services} initialServiceSlug={serviceSlug} />
@@ -175,6 +176,8 @@ export default async function HomePage({
               <a href="#portfolio" className="hover:text-text">Проекты</a>
               <a href="#process" className="hover:text-text">Как работаем</a>
               <a href="#contact" className="hover:text-text">Оставить заявку</a>
+              <a href="/agreement" className="hover:text-text">Пользовательское соглашение</a>
+              <a href="/privacy" className="hover:text-text">Политика обработки данных</a>
             </div>
           </div>
           <div>

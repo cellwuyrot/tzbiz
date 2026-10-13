@@ -33,6 +33,7 @@ describe("lead requests", () => {
       serviceSlug: "crm-integration",
       message: "Нужно связать CRM и учетную систему.",
       privacyConsent: false,
+      agreementAccepted: true,
       website: "",
     }, "203.0.113.10"));
     expect(response.status).toBe(400);
@@ -51,7 +52,7 @@ describe("lead requests", () => {
       message: "Нужно связать CRM и учетную систему.",
       createdAt: new Date(),
     } as never);
-    vi.mocked(sendLeadNotification).mockResolvedValue(undefined);
+    vi.mocked(sendLeadNotification).mockResolvedValue({ clientNotified: true, internalNotified: true });
 
     const response = await POST(request({
       name: "Иван Иванов",
@@ -61,6 +62,7 @@ describe("lead requests", () => {
       serviceSlug: "crm-integration",
       message: "Нужно связать CRM и учетную систему.",
       privacyConsent: true,
+      agreementAccepted: true,
       website: "",
     }, "203.0.113.11"));
 
