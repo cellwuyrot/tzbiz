@@ -61,6 +61,7 @@ export const leadRequestSchema = z.object({
   serviceSlug: z.string().trim().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).min(2).max(80),
   message: z.string().trim().min(10).max(5000),
   privacyConsent: z.literal(true),
+  agreementAccepted: z.literal(true),
   website: z.string().max(0).optional().default(""),
 });
 

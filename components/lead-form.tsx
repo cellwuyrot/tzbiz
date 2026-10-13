@@ -14,6 +14,7 @@ export function LeadForm({ services, initialServiceSlug }: { services: ServiceVi
     serviceSlug: firstSlug,
     message: "",
     privacyConsent: false,
+    agreementAccepted: false,
     website: "",
   });
   const [submitted, setSubmitted] = useState(false);
@@ -38,7 +39,7 @@ export function LeadForm({ services, initialServiceSlug }: { services: ServiceVi
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(data?.error ?? "Не удалось отправить заявку.");
       setSubmitted(true);
-      setValues((previous) => ({ ...previous, name: "", email: "", phone: "", company: "", message: "", privacyConsent: false, website: "" }));
+      setValues((previous) => ({ ...previous, name: "", email: "", phone: "", company: "", message: "", privacyConsent: false, agreementAccepted: false, website: "" }));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Не удалось отправить заявку.");
     } finally {
@@ -82,16 +83,22 @@ export function LeadForm({ services, initialServiceSlug }: { services: ServiceVi
       </div>
 
       <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <label className="flex max-w-2xl gap-3 type-ui text-muted">
-          <input className="mt-1 h-5 w-5 shrink-0 accent-accent" type="checkbox" checked={values.privacyConsent} required onChange={(event) => update("privacyConsent", event.target.checked)} />
-          <span id="lead-form-note">Соглашаюсь на обработку данных, указанных в заявке, для связи по вопросу обращения.</span>
-        </label>
+        <div className="grid max-w-2xl gap-4 type-ui text-muted" id="lead-form-note">
+          <label className="flex gap-3">
+            <input className="mt-1 h-5 w-5 shrink-0 accent-accent" name="agreementAccepted" type="checkbox" checked={values.agreementAccepted} required onChange={(event) => update("agreementAccepted", event.target.checked)} />
+            <span>Принимаю <a className="text-accent underline" href="/agreement" target="_blank" rel="noopener noreferrer">пользовательское соглашение (в новой вкладке)</a>.</span>
+          </label>
+          <label className="flex gap-3">
+            <input className="mt-1 h-5 w-5 shrink-0 accent-accent" name="privacyConsent" type="checkbox" checked={values.privacyConsent} required onChange={(event) => update("privacyConsent", event.target.checked)} />
+            <span>Даю согласие на обработку имени, email, телефона, компании и сообщения для рассмотрения заявки и связи по обращению, включая передачу SMTP-провайдеру для отправки писем, согласно <a className="text-accent underline" href="/privacy" target="_blank" rel="noopener noreferrer">политике обработки персональных данных (в новой вкладке)</a>. Согласие можно отозвать через info@trioz.ru.</span>
+          </label>
+        </div>
         <button className="cta-dark shrink-0" type="submit" disabled={loading}>
           {loading ? "Отправляем…" : "Отправить заявку"} <ArrowUpRight />
         </button>
       </div>
 
-      {submitted ? <p className="mt-4 type-body text-success" role="status">Заявка отправлена. Мы свяжемся с вами по указанным контактам.</p> : null}
+      {submitted ? <p className="mt-4 type-body text-success" role="status">Заявка сохранена. Команда свяжется с вами по указанным контактам. Этот статус не подтверждает доставку email.</p> : null}
       {error ? <p className="mt-4 type-body text-danger" role="alert">{error}</p> : null}
     </form>
   );
