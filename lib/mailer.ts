@@ -26,6 +26,10 @@ function getTransport() {
 function failure(error: unknown): MailResult {
   const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
   if (error instanceof MailConfigurationError || code === "CONFIG") return { status: "FAILED", errorCategory: "CONFIG" };
+  if (code === "EENVELOPE") {
+    const command = error && typeof error === "object" && "command" in error ? String(error.command) : "";
+    return { status: "FAILED", errorCategory: command === "MAIL FROM" ? "SENDER" : command === "RCPT TO" ? "RECIPIENT" : "ENVELOPE" };
+  }
   if (["ETIMEDOUT", "ESOCKET"].includes(code)) return { status: "UNKNOWN", errorCategory: "TIMEOUT" };
   const categories: Record<string, string> = { EAUTH: "AUTH", ETLS: "TLS", EENVELOPE: "RECIPIENT", RECIPIENT: "RECIPIENT", ECONNECTION: "CONNECTION", ECONNREFUSED: "CONNECTION", ENOTFOUND: "CONNECTION", ESMTP: "SMTP" };
   return { status: categories[code] ? "FAILED" : "UNKNOWN", errorCategory: categories[code] || "UNKNOWN" };

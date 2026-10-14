@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const PRIVATE_PREFIXES = ["/enter", "/admin", "/dashboard", "/login"];
+const PRIVATE_PREFIXES = ["/enter", "/admin", "/dashboard", "/login", "/account"];
 
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
@@ -12,5 +12,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/enter/:path*", "/admin/:path*", "/dashboard/:path*", "/login/:path*"],
+  matcher: ["/enter/:path*", "/admin/:path*", "/dashboard/:path*", "/login/:path*", "/account/:path*"],
 };

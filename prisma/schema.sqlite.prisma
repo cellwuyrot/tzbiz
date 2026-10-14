@@ -46,6 +46,8 @@ model User {
   createdAt    DateTime  @default(now())
   projects     Project[]
   sessions     Session[]
+  tzIdentity   TzIdentityLink?
+  planEdits    BillingPlanAudit[]
 }
 
 model Project {
@@ -78,6 +80,7 @@ model Service {
   isPublished     Boolean       @default(false)
   media           ServiceMedia[]
   leads           LeadRequest[]
+  billingPlans    BillingPlan[]
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -144,6 +147,9 @@ model Session {
   userId    String
   expiresAt DateTime
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tzIssuer String?
+  tzSubject String?
+  tzAccessTokenEncrypted String?
 
   @@index([userId])
   @@index([expiresAt])
@@ -154,4 +160,56 @@ model IntegrationCheck {
   status String
   checkedAt DateTime @default(now())
   errorCategory String?
+}
+
+model TzIdentityLink {
+  id String @id @default(cuid())
+  userId String @unique
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  issuer String
+  subject String
+  createdAt DateTime @default(now())
+  @@unique([issuer, subject])
+}
+model TzLoginAttempt {
+  stateHash String @id
+  localUserId String?
+  expiresAt DateTime
+  consumedAt DateTime?
+  @@index([expiresAt])
+}
+model BillingPlan {
+  id String @id @default(cuid())
+  kind String
+  serviceId String?
+  service Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  title String
+  description String
+  mode String
+  amountMinor Int?
+  currency String @default("RUB")
+  periodUnit String?
+  periodCount Int?
+  renewalTerms String @default("")
+  cancellationTerms String @default("")
+  internalNotes String @default("")
+  isPublished Boolean @default(false)
+  isArchived Boolean @default(false)
+  revision Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  edits BillingPlanAudit[]
+  @@index([isPublished, isArchived])
+  @@index([serviceId])
+}
+model BillingPlanAudit {
+  id String @id @default(cuid())
+  planId String
+  plan BillingPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  actorId String?
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  revision Int
+  snapshot String
+  createdAt DateTime @default(now())
+  @@unique([planId, revision])
 }
