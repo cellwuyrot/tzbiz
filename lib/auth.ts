@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Role, User } from "@prisma/client";
 import { prisma } from "./db";
+import { isActiveTzSession } from "./tz-id/client";
 
 export const SESSION_COOKIE = "trioz_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
@@ -26,14 +27,15 @@ function sessionSecret() {
   return process.env.SESSION_SECRET;
 }
 
-export async function createSession(userId: string) {
+export async function createSession(userId: string, tz?: { maxAge: number; tzIssuer: string; tzSubject: string; tzAccessTokenEncrypted: string }) {
   sessionSecret();
   const raw = `${crypto.randomBytes(32).toString("hex")}.${crypto.randomBytes(16).toString("hex")}`;
   const id = sessionHash(raw);
-  const expiresAt = new Date(Date.now() + SESSION_MAX_AGE * 1000);
-  await prisma.session.create({ data: { id, userId, expiresAt } });
+  const maxAge = tz ? Math.max(1, Math.min(300, Math.floor(tz.maxAge))) : SESSION_MAX_AGE;
+  const expiresAt = new Date(Date.now() + maxAge * 1000);
+  await prisma.session.create({ data: { id, userId, expiresAt, ...(tz ? { tzIssuer: tz.tzIssuer, tzSubject: tz.tzSubject, tzAccessTokenEncrypted: tz.tzAccessTokenEncrypted } : {}) } });
   const store = await cookies();
-  store.set(SESSION_COOKIE, raw, sessionCookieOptions);
+  store.set(SESSION_COOKIE, raw, { ...sessionCookieOptions, maxAge });
 }
 
 export async function destroySession() {
@@ -51,6 +53,10 @@ export async function getCurrentUser(): Promise<User | null> {
   if (!session) return null;
   if (session.expiresAt <= new Date()) {
     await prisma.session.delete({ where: { id: session.id } }).catch(() => undefined);
+    return null;
+  }
+  if (session.tzIssuer && !(await isActiveTzSession(session))) {
+    await prisma.session.deleteMany({ where: { id: session.id } }).catch(() => undefined);
     return null;
   }
   return session.user;

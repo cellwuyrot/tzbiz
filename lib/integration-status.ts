@@ -1,11 +1,14 @@
 import { prisma } from "./db";
+import { tzIdConfigSnapshot } from "./tz-id/config";
 import { mailConfigSnapshot } from "./mailer-config";
 export async function integrationStatus() {
   const checks = await prisma.integrationCheck.findMany({ where: { key: { in: ["smtp.verify", "smtp.test"] } } });
   return {
     mail: mailConfigSnapshot(),
+    tzId: tzIdConfigSnapshot(),
+    billing: { checkoutEnabled: false as const, recurringEnabled: false as const, provider: "Т-Банк (не подключён)", premiumVpnFulfillment: false as const },
     checks: checks.map(check => ({ key: check.key, status: check.status, checkedAt: check.checkedAt.toISOString(), errorCategory: check.errorCategory })),
-    platform: { connected: false as const, reason: "API основной платформы не согласован и не подключён. Письмо на info@trioz.ru не создаёт клиента или подписку в trioz.ru." },
+    platform: { connected: false as const, reason: "Вход Business через существующий OIDC TZ ID реализован и требует конфигурации. Обмен подписками, выдача Premium/VPN и постоянная фоновая синхронизация не подключены. Письмо на info@trioz.ru не создаёт аккаунт или подписку." },
   };
 }
 export type IntegrationStatus = Awaited<ReturnType<typeof integrationStatus>>;

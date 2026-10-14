@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { siteUrl } from "@/lib/site-url";
 import { prisma } from "@/lib/db";
@@ -179,6 +180,7 @@ export default async function HomePage({
               <a href="#services" className="hover:text-text">Услуги</a>
               <a href="#portfolio" className="hover:text-text">Проекты</a>
               <a href="#process" className="hover:text-text">Как работаем</a>
+              <Link href="/plans" className="hover:text-text">Тарифы и подписочные услуги</Link>
               <a href="#contact" className="hover:text-text">Оставить заявку</a>
               <a href="/agreement" className="hover:text-text">Пользовательское соглашение</a>
               <a href="/privacy" className="hover:text-text">Политика обработки данных</a>

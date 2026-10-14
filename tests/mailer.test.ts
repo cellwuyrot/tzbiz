@@ -100,3 +100,14 @@ describe("independent lead notifications", () => {
     expect(createTransport).toHaveBeenCalledWith(expect.objectContaining({ secure: false, requireTLS: true }));
   });
 });
+
+describe("SMTP envelope diagnostics", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  it("distinguishes a sender refusal without exposing raw SMTP response", async () => {
+    vi.stubEnv("SMTP_HOST", "smtp.test.invalid"); vi.stubEnv("SMTP_USER", "synthetic"); vi.stubEnv("SMTP_PASS", "synthetic-password");
+    sendMail.mockRejectedValue(Object.assign(new Error("private SMTP response"), { code: "EENVELOPE", command: "MAIL FROM" }));
+    createTransport.mockReturnValue({ sendMail, close: vi.fn() });
+    const record = vi.fn(); await sendLeadNotification(lead, record);
+    expect(record).toHaveBeenCalledWith("client", { status: "FAILED", errorCategory: "SENDER" });
+  });
+});

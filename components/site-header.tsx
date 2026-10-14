@@ -20,6 +20,7 @@ export function SiteHeader({ basePath = "" }: { basePath?: string }) {
         </Link>
         <nav className="hidden items-center gap-6 lg:flex" aria-label="Основная навигация">
           <a href={servicesHref} className="type-ui text-muted hover:text-text">Услуги</a>
+          <Link href="/plans" className="type-ui text-muted hover:text-text">Тарифы</Link>
           <a href={projectsHref} className="type-ui text-muted hover:text-text">Проекты</a>
           <a href={processHref} className="type-ui text-muted hover:text-text">О компании</a>
           <a href={contactHref} className="type-ui text-muted hover:text-text">Контакты</a>

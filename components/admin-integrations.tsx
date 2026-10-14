@@ -33,7 +33,7 @@ export function AdminIntegrations() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Проверка не выполнена.");
       setNotice(kind === "verify"
-        ? (data.ok ? "SMTP-соединение и авторизация проверены. Право отправителя и доставка ещё не подтверждены." : `SMTP: ${describe(data.result)}`)
+        ? (data.ok ? "SMTP-соединение и авторизация проверены. Право отправителя и доставка ещё не подтверждены." : `Проверка соединения: ${data.result.errorCategory === "TIMEOUT" ? "истекло время ожидания; письма не отправлялись" : MAIL_ERROR_LABELS[data.result.errorCategory] || "неизвестная ошибка"}`)
         : `Клиентский тест: ${describe(data.results.client)}. Внутренний тест: ${describe(data.results.internal)}. Принятие SMTP не доказывает доставку в ящик.`);
       if (!data.recorded) setError("Результат проверки не сохранён в БД. Не повторяйте отправку без проверки ящиков.");
       if (kind === "test") setConfirmed(false);
@@ -74,9 +74,14 @@ export function AdminIntegrations() {
             </div>
           </div>
           <div className="panel space-y-4 p-6">
-            <h3 className="type-h3">Основная платформа trioz.ru</h3>
-            <p className="type-body text-muted">Не подключена. {status.platform.reason}</p>
-            <p className="type-ui text-subtle">Здесь нет вымышленного поля API-ключа. Для подключения нужны реальный API, механизм авторизации, стабильный ID аккаунта и согласованный сценарий. Почтовая отправка не требует API основной платформы.</p>
+            <h3 className="type-h3">TZ ID и будущий биллинг</h3>
+            <p className="type-body text-muted">{status.tzId?.configured ? "OIDC-конфигурация задана. Реальный вход проверяется отдельно." : "Вход через TZ ID требует настройки."}</p>
+            <p className="type-ui text-muted break-all">Issuer: {status.tzId?.issuer} · Callback: {status.tzId?.callbackUrl}</p>
+            {status.tzId?.missingKeys.length ? <p className="type-ui text-danger">Не заданы: {status.tzId.missingKeys.join(", ")}</p> : null}
+            {status.tzId?.invalidKeys.length ? <p className="type-ui text-danger">Проверить: {status.tzId.invalidKeys.join(", ")}</p> : null}
+            <p className="type-body text-muted">Т-Банк, автоматические списания и выдача Premium/VPN не подключены. Создание тарифов не создаёт платежей.</p>
+            <p className="type-body text-muted">Обмен подписками не включён. {status.platform.reason}</p>
+            <p className="type-ui text-subtle">OIDC client secret и ключ шифрования хранятся только в окружении Business. Центральный профиль не копируется. API выдачи Premium/VPN и постоянной фоновой синхронизации в найденном Hub отсутствует. Почтовая отправка не требует API основной платформы.</p>
             <a className="button-secondary" href="https://trioz.ru/connect" target="_blank" rel="noopener noreferrer">Открыть основную платформу</a>
           </div>
         </>

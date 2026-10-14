@@ -9,6 +9,7 @@ export const MAIL_STATUS_LABELS: Record<MailStatus, string> = {
   FAILED: "Не принято SMTP", UNKNOWN: "Результат неизвестен",
 };
 export const MAIL_ERROR_LABELS: Record<string, string> = {
+  SENDER: "Отправитель отклонён", ENVELOPE: "Адрес отправителя или получателя отклонён",
   CONFIG: "Проверьте конфигурацию", AUTH: "Ошибка авторизации", TLS: "Ошибка TLS",
   CONNECTION: "Нет соединения", TIMEOUT: "Таймаут: возможна доставка", RECIPIENT: "Получатель отклонён",
   SMTP: "Отказ SMTP", UNKNOWN: "Неизвестный результат",
