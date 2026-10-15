@@ -265,8 +265,8 @@ video {
   }
 
   .scroll-reveal {
-    opacity: 0;
-    transform: translateY(18px);
+    opacity: 1;
+    transform: none;
     transition: opacity 700ms cubic-bezier(.22,1,.36,1), transform 700ms cubic-bezier(.22,1,.36,1);
   }
 
@@ -648,3 +648,11 @@ video {
     padding: 20px;
   }
 }
+
+/* Long service titles, contacts and pasted URLs must not widen mobile layouts. */
+body { overflow-wrap: anywhere; }
+
+/* Visible controls and comfortable checkbox label targets in both admin and client forms. */
+.field { border-color: #68737b; }
+label:has(input[type="checkbox"]) { min-height: 44px; }
+input[type="checkbox"] { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--color-accent); }

@@ -5,74 +5,13 @@
       "name": "@next/eslint-plugin-next",
       "severity": "high",
       "isDirect": false,
-      "via": [
-        "fast-glob"
-      ],
-      "effects": [
-        "eslint-config-next"
-      ],
+      "via": ["fast-glob"],
+      "effects": ["eslint-config-next"],
       "range": ">=14.3.0-canary.0",
-      "nodes": [
-        "node_modules/@next/eslint-plugin-next"
-      ],
+      "nodes": ["node_modules/@next/eslint-plugin-next"],
       "fixAvailable": {
         "name": "eslint-config-next",
         "version": "14.2.35",
-        "isSemVerMajor": true
-      }
-    },
-    "@prisma/config": {
-      "name": "@prisma/config",
-      "severity": "high",
-      "isDirect": false,
-      "via": [
-        "deepmerge-ts"
-      ],
-      "effects": [
-        "prisma"
-      ],
-      "range": "6.13.0-dev.1 - 8.1.0-dev.4",
-      "nodes": [
-        "node_modules/@prisma/config"
-      ],
-      "fixAvailable": {
-        "name": "prisma",
-        "version": "6.12.0",
-        "isSemVerMajor": true
-      }
-    },
-    "@vitest/mocker": {
-      "name": "@vitest/mocker",
-      "severity": "moderate",
-      "isDirect": false,
-      "via": [
-        {
-          "source": 1193684,
-          "name": "@vitest/mocker",
-          "dependency": "@vitest/mocker",
-          "title": "Vitest: Path Traversal / Arbitrary File Read via @vitest/mocker Redirect Mock",
-          "url": "https://github.com/advisories/GHSA-82fw-gwwq-j7x9",
-          "severity": "moderate",
-          "cwe": [
-            "CWE-22"
-          ],
-          "cvss": {
-            "score": 5.9,
-            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N"
-          },
-          "range": ">=2.1.0 <4.1.11"
-        }
-      ],
-      "effects": [
-        "vitest"
-      ],
-      "range": "2.1.0 - 4.1.10",
-      "nodes": [
-        "node_modules/@vitest/mocker"
-      ],
-      "fixAvailable": {
-        "name": "vitest",
-        "version": "5.0.4",
         "isSemVerMajor": true
       }
     },
@@ -88,9 +27,7 @@
           "title": "braces vulnerable to stack-exhaustion denial of service through deeply nested patterns",
           "url": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
           "severity": "high",
-          "cwe": [
-            "CWE-674"
-          ],
+          "cwe": ["CWE-674"],
           "cvss": {
             "score": 7.5,
             "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
@@ -98,14 +35,9 @@
           "range": "<=3.0.3"
         }
       ],
-      "effects": [
-        "chokidar",
-        "micromatch"
-      ],
+      "effects": ["chokidar", "micromatch"],
       "range": "*",
-      "nodes": [
-        "node_modules/braces"
-      ],
+      "nodes": ["node_modules/braces"],
       "fixAvailable": {
         "name": "tailwindcss",
         "version": "4.3.3",
@@ -116,54 +48,13 @@
       "name": "chokidar",
       "severity": "high",
       "isDirect": false,
-      "via": [
-        "braces"
-      ],
-      "effects": [
-        "tailwindcss"
-      ],
+      "via": ["braces"],
+      "effects": ["tailwindcss"],
       "range": "2.0.0 - 3.6.0",
-      "nodes": [
-        "node_modules/tailwindcss/node_modules/chokidar"
-      ],
+      "nodes": ["node_modules/tailwindcss/node_modules/chokidar"],
       "fixAvailable": {
         "name": "tailwindcss",
         "version": "4.3.3",
-        "isSemVerMajor": true
-      }
-    },
-    "deepmerge-ts": {
-      "name": "deepmerge-ts",
-      "severity": "high",
-      "isDirect": false,
-      "via": [
-        {
-          "source": 1145093,
-          "name": "deepmerge-ts",
-          "dependency": "deepmerge-ts",
-          "title": "DeepmergeTS has stack exhaustion when merging recursive object graphs",
-          "url": "https://github.com/advisories/GHSA-ggr8-5vv4-36mx",
-          "severity": "high",
-          "cwe": [
-            "CWE-674"
-          ],
-          "cvss": {
-            "score": 0,
-            "vectorString": null
-          },
-          "range": "<8.0.0"
-        }
-      ],
-      "effects": [
-        "@prisma/config"
-      ],
-      "range": "<8.0.0",
-      "nodes": [
-        "node_modules/deepmerge-ts"
-      ],
-      "fixAvailable": {
-        "name": "prisma",
-        "version": "6.12.0",
         "isSemVerMajor": true
       }
     },
@@ -171,14 +62,10 @@
       "name": "eslint-config-next",
       "severity": "high",
       "isDirect": true,
-      "via": [
-        "@next/eslint-plugin-next"
-      ],
+      "via": ["@next/eslint-plugin-next"],
       "effects": [],
       "range": ">=14.3.0-canary.0",
-      "nodes": [
-        "node_modules/eslint-config-next"
-      ],
+      "nodes": ["node_modules/eslint-config-next"],
       "fixAvailable": {
         "name": "eslint-config-next",
         "version": "14.2.35",
@@ -189,12 +76,8 @@
       "name": "fast-glob",
       "severity": "high",
       "isDirect": false,
-      "via": [
-        "micromatch"
-      ],
-      "effects": [
-        "@next/eslint-plugin-next"
-      ],
+      "via": ["micromatch"],
+      "effects": ["@next/eslint-plugin-next"],
       "range": "*",
       "nodes": [
         "node_modules/fast-glob",
@@ -210,618 +93,27 @@
       "name": "micromatch",
       "severity": "high",
       "isDirect": false,
-      "via": [
-        "braces"
-      ],
-      "effects": [
-        "fast-glob",
-        "tailwindcss"
-      ],
+      "via": ["braces"],
+      "effects": ["fast-glob", "tailwindcss"],
       "range": ">=0.2.0",
-      "nodes": [
-        "node_modules/micromatch"
-      ],
+      "nodes": ["node_modules/micromatch"],
       "fixAvailable": {
         "name": "tailwindcss",
         "version": "4.3.3",
         "isSemVerMajor": true
       }
-    },
-    "next": {
-      "name": "next",
-      "severity": "moderate",
-      "isDirect": true,
-      "via": [
-        {
-          "source": 1241491,
-          "name": "next",
-          "dependency": "next",
-          "title": "Next.js has cache poisoning of SSG and ISR pages in self-hosted applications",
-          "url": "https://github.com/advisories/GHSA-4jqv-mc3x-m676",
-          "severity": "moderate",
-          "cwe": [
-            "CWE-524"
-          ],
-          "cvss": {
-            "score": 5.3,
-            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
-          },
-          "range": ">=15.0.0 <15.5.27"
-        },
-        {
-          "source": 1241494,
-          "name": "next",
-          "dependency": "next",
-          "title": "Next.js has cache poisoning in SSG/ISR rendering that leads to cross-user content substitution and persistent denial of service",
-          "url": "https://github.com/advisories/GHSA-mcj8-r9mp-w47p",
-          "severity": "moderate",
-          "cwe": [
-            "CWE-524"
-          ],
-          "cvss": {
-            "score": 4.8,
-            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:L"
-          },
-          "range": ">=15.0.0 <15.5.27"
-        },
-        "postcss"
-      ],
-      "effects": [],
-      "range": "9.3.4-canary.0 - 16.3.0-preview.10",
-      "nodes": [
-        "node_modules/next"
-      ],
-      "fixAvailable": true
-    },
-    "nodemailer": {
-      "name": "nodemailer",
-      "severity": "high",
-      "isDirect": true,
-      "via": [
-        {
-          "source": 1109804,
-          "name": "nodemailer",
-          "dependency": "nodemailer",
-          "title": "Nodemailer: Email to an unintended domain can occur due to Interpretation Conflict",
-          "url": "https://github.com/advisories/GHSA-mm7p-fcc7-pg87",
-          "severity": "moderate",
-          "cwe": [
-            "CWE-20",
-            "CWE-436"
-          ],
-          "cvss": {
-            "score": 0,
-            "vectorString": null
-          },
-          "range": "<7.0.7"
-        },
-        {
-          "source": 1115470,
-          "name": "nodemailer",
-          "dependency": "nodemailer",
-          "title": "Nodemailer has SMTP command injection due to unsanitized `envelope.size` parameter",
-          "url": "https://github.com/advisories/GHSA-c7w3-x93f-qmm8",
-          "severity": "low",
-          "cwe": [
-            "CWE-93"
-          ],
-          "cvss": {
-            "score": 0,
-            "vectorString": null
-          },
-          "range": "<8.0.4"
-        },
-        {
-          "source": 1116270,
-          "name": "nodemailer",
-          "dependency": "nodemailer",
-          "title": "Nodemailer Vulnerable to SMTP Command Injection via CRLF in Transport name Option (EHLO/HELO) ",
-          "url": "https://github.com/advisories/GHSA-vvjj-xcjg-gr5g",
-          "severity": "moderate",
-          "cwe": [
-            "CWE-93"
-          ],
-          "cvss": {
-            "score": 4.9,
-            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:N/I:H/A:N"
-          },
-          "range": "<=8.0.4"
-        },
-        {
-          "source": 1120795,
-          "name": "nodemailer",
-          "dependency": "nodemailer",
-          "title": "Nodemailer: CRLF injection in Nodemailer List-* header comments allows arbitrary message header injection",
-          "url": "https://github.com/advisories/GHSA-268h-hp4c-crq3",
-          "severity": "moderate",
-          "cwe": [
-            "CWE-93"
-          ],
-          "cvss": {
-            "score": 5.4,
-            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N"
-          },
-          "range": "<=8.0.8"
-        },
-        {
-          "source": 1120796,
-          "name": "nodemailer",
-          "dependency": "nodemailer",
-          "title": "Nodemailer jsonTransport bypasses disableFileAccess and disableUrlAccess during message normalization",
-          "url": "https://github.com/advisories/GHSA-wqvq-jvpq-h66f",
-          "severity": "moderate",
-          "cwe": [
-            "CWE-862"
-          ],
-          "cvss": {
-            "score": 5.4,
-            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N"
-          },
-          "range": "<=8.0.8"
-        },
-        {
-          "source": 1123478,
-          "name": "nodemailer",
-          "dependency": "nodemailer",
-          "title": "Nodemailer’s addressparser is vulnerable to DoS caused by recursive calls",
-          "url": "https://github.com/advisories/GHSA-rcmh-qjqh-p98v",
-          "severity": "high",
-          "cwe": [
-            "CWE-703"
-          ],
-          "cvss": {
-            "score": 7.5,
-            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
-          },
-          "range": ">=3.0.0 <=7.0.10"
-        },
-        {
-          "source": 1158513,
-          "name": "nodemailer",
-          "dependency": "nodemailer",
-          "title": "Nodemailer: Message-level raw option bypasses disableFileAccess/disableUrlAccess, enabling arbitrary file read and full-response SSRF in the delivered message",
-          "url": "https://github.com/advisories/GHSA-p6gq-j5cr-w38f",
-          "severity": "high",
-          "cwe": [
-            "CWE-73",
-            "CWE-918"
-          ],
-          "cvss": {
-            "score": 7.1,
-            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:L/A:N"
-          },
-          "range": "<=9.0.0"
-        },
-        {
-          "source": 1193741,
-          "name": "nodemailer",
-          "dependency": "nodemailer",
-          "title": "Nodemailer: resolveContent() on a MailMessage bypasses disableFileAccess/disableUrlAccess when called with the legacy signature",
-          "url": "https://github.com/advisories/GHSA-8m3c-c648-2xjj",
-          "severity": "moderate",
-          "cwe": [
-            "CWE-73",
-            "CWE-918"
-          ],
-          "cvss": {
-            "score": 5.9,
-            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:L/A:N"
-          },
-          "range": "<=9.1.0"
-        },
-        {
-          "source": 1193770,
-          "name": "nodemailer",
-          "dependency": "nodemailer",
-          "title": "Nodemailer: IDN/Punycode domain allow-list bypass leads to email delivery to an attacker-controlled domain",
-          "url": "https://github.com/advisories/GHSA-wmmp-3585-3rmp",
-          "severity": "moderate",
-          "cwe": [
-            "CWE-20",
-            "CWE-436"
-          ],
-          "cvss": {
-            "score": 6.5,
-            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:L/A:N"
-          },
-          "range": "<9.1.0"
-        },
-        {
-          "source": 1193778,
-          "name": "nodemailer",
-          "dependency": "nodemailer",
-          "title": "Nodemailer: Quadratic (O(n²)) time complexity in addressparser allows remote denial of service via a crafted address list",
-          "url": "https://github.com/advisories/GHSA-2x7j-588g-ccc2",
-          "severity": "high",
-          "cwe": [
-            "CWE-400",
-            "CWE-407"
-          ],
-          "cvss": {
-            "score": 7.5,
-            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
-          },
-          "range": "<9.1.0"
-        },
-        {
-          "source": 1193779,
-          "name": "nodemailer",
-          "dependency": "nodemailer",
-          "title": "Nodemailer: Recipient-domain validation bypass via RFC 5322 comment mis-parsing leads to email delivery to an attacker-controlled domain",
-          "url": "https://github.com/advisories/GHSA-cc9r-2j5m-2m83",
-          "severity": "moderate",
-          "cwe": [
-            "CWE-20",
-            "CWE-436"
-          ],
-          "cvss": {
-            "score": 6.5,
-            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:L/A:N"
-          },
-          "range": ">=6.9.16 <9.1.0"
-        },
-        {
-          "source": 1239931,
-          "name": "nodemailer",
-          "dependency": "nodemailer",
-          "title": "Nodemailer: Process-global DNS cache reuses TLS `servername` across transports, enabling cross-tenant SMTP credential disclosure",
-          "url": "https://github.com/advisories/GHSA-6vj9-mwq6-2f5v",
-          "severity": "moderate",
-          "cwe": [
-            "CWE-295"
-          ],
-          "cvss": {
-            "score": 5.9,
-            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:L/A:N"
-          },
-          "range": ">=5.0.0 <10.0.2"
-        },
-        {
-          "source": 1240033,
-          "name": "nodemailer",
-          "dependency": "nodemailer",
-          "title": "Nodemailer: Nested structured recipient arrays bypass the parser depth limit and cause stack exhaustion DoS",
-          "url": "https://github.com/advisories/GHSA-8vvx-rff5-p5rq",
-          "severity": "moderate",
-          "cwe": [
-            "CWE-674"
-          ],
-          "cvss": {
-            "score": 5.9,
-            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H"
-          },
-          "range": "<10.0.2"
-        },
-        {
-          "source": 1240114,
-          "name": "nodemailer",
-          "dependency": "nodemailer",
-          "title": "Nodemailer: Quadratic backtracking in the addressparser free-text fallback allows remote denial of service",
-          "url": "https://github.com/advisories/GHSA-v53p-9fqp-m79j",
-          "severity": "high",
-          "cwe": [
-            "CWE-407",
-            "CWE-1333"
-          ],
-          "cvss": {
-            "score": 7.5,
-            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
-          },
-          "range": "<=10.0.5"
-        },
-        {
-          "source": 1241195,
-          "name": "nodemailer",
-          "dependency": "nodemailer",
-          "title": "Nodemailer: Improper TLS Certificate Validation in OAuth2 Token Fetch Enables Credential Interception",
-          "url": "https://github.com/advisories/GHSA-r7g4-qg5f-qqm2",
-          "severity": "high",
-          "cwe": [
-            "CWE-295"
-          ],
-          "cvss": {
-            "score": 6.5,
-            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:L/A:N"
-          },
-          "range": "<=8.0.7"
-        }
-      ],
-      "effects": [],
-      "range": "<=10.0.5",
-      "nodes": [
-        "node_modules/nodemailer"
-      ],
-      "fixAvailable": {
-        "name": "nodemailer",
-        "version": "10.1.0",
-        "isSemVerMajor": true
-      }
-    },
-    "postcss": {
-      "name": "postcss",
-      "severity": "high",
-      "isDirect": false,
-      "via": [
-        {
-          "source": 1117015,
-          "name": "postcss",
-          "dependency": "postcss",
-          "title": "PostCSS has XSS via Unescaped </style> in its CSS Stringify Output",
-          "url": "https://github.com/advisories/GHSA-qx2v-qp2m-jg93",
-          "severity": "moderate",
-          "cwe": [
-            "CWE-79"
-          ],
-          "cvss": {
-            "score": 6.1,
-            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
-          },
-          "range": "<8.5.10"
-        },
-        {
-          "source": 1124252,
-          "name": "postcss",
-          "dependency": "postcss",
-          "title": "PostCSS: Arbitrary file read and information disclosure via attacker-controlled sourceMappingURL in CSS comments",
-          "url": "https://github.com/advisories/GHSA-6g55-p6wh-862q",
-          "severity": "high",
-          "cwe": [
-            "CWE-22",
-            "CWE-200"
-          ],
-          "cvss": {
-            "score": 7.5,
-            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
-          },
-          "range": "<=8.5.11"
-        },
-        {
-          "source": 1130709,
-          "name": "postcss",
-          "dependency": "postcss",
-          "title": "PostCSS: incomplete fix of GHSA-6g55-p6wh-862q — attacker-controlled sourceMappingURL reads arbitrary .map files when `from` is unset",
-          "url": "https://github.com/advisories/GHSA-fxqj-rqcc-2cmp",
-          "severity": "moderate",
-          "cwe": [
-            "CWE-22",
-            "CWE-200"
-          ],
-          "cvss": {
-            "score": 0,
-            "vectorString": null
-          },
-          "range": "<=8.5.22"
-        },
-        {
-          "source": 1139510,
-          "name": "postcss",
-          "dependency": "postcss",
-          "title": "PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure",
-          "url": "https://github.com/advisories/GHSA-r28c-9q8g-f849",
-          "severity": "high",
-          "cwe": [
-            "CWE-22"
-          ],
-          "cvss": {
-            "score": 7.5,
-            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
-          },
-          "range": "<=8.5.17"
-        }
-      ],
-      "effects": [
-        "next"
-      ],
-      "range": "<=8.5.22",
-      "nodes": [
-        "node_modules/next/node_modules/postcss"
-      ],
-      "fixAvailable": true
-    },
-    "postcss-nested": {
-      "name": "postcss-nested",
-      "severity": "moderate",
-      "isDirect": false,
-      "via": [
-        "postcss-selector-parser"
-      ],
-      "effects": [],
-      "range": "2.0.3 - 6.2.0",
-      "nodes": [
-        "node_modules/postcss-nested"
-      ],
-      "fixAvailable": true
-    },
-    "postcss-selector-parser": {
-      "name": "postcss-selector-parser",
-      "severity": "moderate",
-      "isDirect": false,
-      "via": [
-        {
-          "source": 1241232,
-          "name": "postcss-selector-parser",
-          "dependency": "postcss-selector-parser",
-          "title": "PostCSS: Quadratic complexity in flat selector parsing allows CPU exhaustion",
-          "url": "https://github.com/advisories/GHSA-rj75-hqrm-r3gf",
-          "severity": "moderate",
-          "cwe": [
-            "CWE-400",
-            "CWE-407"
-          ],
-          "cvss": {
-            "score": 5.9,
-            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H"
-          },
-          "range": "<7.1.6"
-        }
-      ],
-      "effects": [
-        "postcss-nested",
-        "tailwindcss"
-      ],
-      "range": "<7.1.6",
-      "nodes": [
-        "node_modules/postcss-selector-parser"
-      ],
-      "fixAvailable": {
-        "name": "tailwindcss",
-        "version": "4.3.3",
-        "isSemVerMajor": true
-      }
-    },
-    "prisma": {
-      "name": "prisma",
-      "severity": "high",
-      "isDirect": true,
-      "via": [
-        "@prisma/config"
-      ],
-      "effects": [],
-      "range": "6.13.0-dev.1 - 8.1.0-dev.4",
-      "nodes": [
-        "node_modules/prisma"
-      ],
-      "fixAvailable": {
-        "name": "prisma",
-        "version": "6.12.0",
-        "isSemVerMajor": true
-      }
-    },
-    "source-map-js": {
-      "name": "source-map-js",
-      "severity": "high",
-      "isDirect": false,
-      "via": [
-        {
-          "source": 1241209,
-          "name": "source-map-js",
-          "dependency": "source-map-js",
-          "title": "source-map-js allows event-loop denial of service through indexed source-map section offsets",
-          "url": "https://github.com/advisories/GHSA-68fv-2mgg-jv7q",
-          "severity": "high",
-          "cwe": [
-            "CWE-1284"
-          ],
-          "cvss": {
-            "score": 7.5,
-            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
-          },
-          "range": ">=1.0.0 <1.2.2"
-        }
-      ],
-      "effects": [],
-      "range": "1.0.0 - 1.2.1",
-      "nodes": [
-        "node_modules/source-map-js"
-      ],
-      "fixAvailable": true
     },
     "tailwindcss": {
       "name": "tailwindcss",
       "severity": "high",
       "isDirect": true,
-      "via": [
-        "chokidar",
-        "fast-glob",
-        "micromatch",
-        "postcss-nested",
-        "postcss-selector-parser"
-      ],
+      "via": ["chokidar", "fast-glob", "micromatch"],
       "effects": [],
-      "range": "<=0.0.0-oxide-insiders.ff2c25f || 0.5.0 - 3.4.19",
-      "nodes": [
-        "node_modules/tailwindcss"
-      ],
+      "range": "<=0.0.0-oxide-insiders.ff2c25f || 2.1.0-canary.1 - 3.4.19",
+      "nodes": ["node_modules/tailwindcss"],
       "fixAvailable": {
         "name": "tailwindcss",
         "version": "4.3.3",
-        "isSemVerMajor": true
-      }
-    },
-    "tinypool": {
-      "name": "tinypool",
-      "severity": "critical",
-      "isDirect": false,
-      "via": [
-        {
-          "source": 1241260,
-          "name": "tinypool",
-          "dependency": "tinypool",
-          "title": "Tinypool: Prototype Pollution gadget in worker options leads to Remote Code Execution",
-          "url": "https://github.com/advisories/GHSA-5gmw-xhrv-c9v3",
-          "severity": "critical",
-          "cwe": [
-            "CWE-1321"
-          ],
-          "cvss": {
-            "score": 0,
-            "vectorString": null
-          },
-          "range": "<=2.1.0"
-        },
-        {
-          "source": 1241261,
-          "name": "tinypool",
-          "dependency": "tinypool",
-          "title": "Tinypool: Prototype Pollution Gadget to RCE in run() options",
-          "url": "https://github.com/advisories/GHSA-85c8-ppgw-ccpr",
-          "severity": "critical",
-          "cwe": [
-            "CWE-94",
-            "CWE-1321"
-          ],
-          "cvss": {
-            "score": 0,
-            "vectorString": null
-          },
-          "range": "<2.1.2"
-        }
-      ],
-      "effects": [
-        "vitest"
-      ],
-      "range": "<=2.1.1",
-      "nodes": [
-        "node_modules/tinypool"
-      ],
-      "fixAvailable": {
-        "name": "vitest",
-        "version": "5.0.4",
-        "isSemVerMajor": true
-      }
-    },
-    "vitest": {
-      "name": "vitest",
-      "severity": "critical",
-      "isDirect": true,
-      "via": [
-        "@vitest/mocker",
-        {
-          "source": 1193683,
-          "name": "vitest",
-          "dependency": "vitest",
-          "title": "Vitest: Path Traversal / Arbitrary File Read via @vitest/mocker Redirect Mock",
-          "url": "https://github.com/advisories/GHSA-82fw-gwwq-j7x9",
-          "severity": "moderate",
-          "cwe": [
-            "CWE-22"
-          ],
-          "cvss": {
-            "score": 5.9,
-            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N"
-          },
-          "range": ">=2.1.0 <4.1.11"
-        },
-        "tinypool"
-      ],
-      "effects": [],
-      "range": "0.0.95 - 4.1.10",
-      "nodes": [
-        "node_modules/vitest"
-      ],
-      "fixAvailable": {
-        "name": "vitest",
-        "version": "5.0.4",
         "isSemVerMajor": true
       }
     }
@@ -830,18 +122,18 @@
     "vulnerabilities": {
       "info": 0,
       "low": 0,
-      "moderate": 4,
-      "high": 13,
-      "critical": 2,
-      "total": 19
+      "moderate": 0,
+      "high": 7,
+      "critical": 0,
+      "total": 7
     },
     "dependencies": {
-      "prod": 57,
-      "dev": 462,
-      "optional": 118,
-      "peer": 0,
+      "prod": 63,
+      "dev": 417,
+      "optional": 117,
+      "peer": 32,
       "peerOptional": 0,
-      "total": 556
+      "total": 543
     }
   }
 }

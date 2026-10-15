@@ -1,0 +1,12 @@
+import {beforeEach,afterEach,it,expect,vi} from "vitest";
+vi.mock("next/headers",()=>({cookies:async()=>({get:()=>({value:"synthetic-session"})})}));
+vi.mock("@/lib/db",()=>({prisma:{session:{findUnique:vi.fn(),delete:vi.fn(),deleteMany:vi.fn()}}}));
+vi.mock("@/lib/tz-id/client",()=>({isActiveTzSession:vi.fn()}));
+import {prisma} from "@/lib/db";
+import {isActiveTzSession} from "@/lib/tz-id/client";
+import {getCurrentUser} from "@/lib/auth";
+beforeEach(()=>{vi.resetAllMocks();vi.stubEnv("SESSION_SECRET","synthetic-test-secret-at-least-32-chars");vi.mocked(prisma.session.findUnique).mockResolvedValue({id:"session",tzIssuer:"https://id.trioz.ru",expiresAt:new Date(Date.now()+60_000),user:{id:"user"}} as never);vi.mocked(prisma.session.deleteMany).mockResolvedValue({count:1});vi.mocked(prisma.session.delete).mockResolvedValue({} as never);});
+afterEach(()=>vi.unstubAllEnvs());
+it("fails closed but preserves the session on introspection outage",async()=>{vi.mocked(isActiveTzSession).mockResolvedValue(null);expect(await getCurrentUser()).toBe(null);expect(prisma.session.deleteMany).not.toHaveBeenCalled();});
+it("deletes a revoked or mismatching identity",async()=>{vi.mocked(isActiveTzSession).mockResolvedValue(false);expect(await getCurrentUser()).toBe(null);expect(prisma.session.deleteMany).toHaveBeenCalled();});
+it("allows only verified active sessions",async()=>{vi.mocked(isActiveTzSession).mockResolvedValue(true);expect(await getCurrentUser()).toMatchObject({id:"user"});});

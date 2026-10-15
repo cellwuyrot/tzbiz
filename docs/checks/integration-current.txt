@@ -1,0 +1,20 @@
+
+> trioz-services-portal@1.0.0 test:integration
+> tsx scripts/integration-check.ts
+
+PASS anonymous/client/CSRF protections
+PASS owner-controlled readiness settings
+PASS all three settlement modes, Premium and VPN mappings
+PASS renaming Premium preserves technical product identity
+PASS public projection hides internal notes
+PASS server-owned prices and per-user idempotent request keys
+PASS unpaid orders and TZ ID access cannot be activated by status checkbox
+PASS allowed service workflow and status audit
+PASS immutable snapshots and stale revision rejection
+PASS lead idempotency and atomic two-channel outbox
+PASS mail configuration failure persists retry jobs and lead
+PASS streaming range 206 and invalid range 416
+PASS service rename preserves permanent redirects
+PASS old service addresses cannot be assigned to another service
+PASS atomic shared-storage rate limiting
+PASS scheduled maintenance removes expired sessions, rates and login attempts

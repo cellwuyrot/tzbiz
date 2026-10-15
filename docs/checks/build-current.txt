@@ -1,0 +1,84 @@
+
+> trioz-services-portal@1.0.0 build
+> node scripts/prisma-sync.mjs && prisma generate && next build
+
+[prisma-sync] provider=sqlite
+Prisma schema loaded from prisma/schema.prisma
+
+✔ Generated Prisma Client (v6.19.3) to ./node_modules/@prisma/client in 118ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
+
+   ▲ Next.js 15.5.28
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 9.7s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/27) ...
+   Generating static pages (6/27) 
+   Generating static pages (13/27) 
+   Generating static pages (20/27) 
+ ✓ Generating static pages (27/27)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                       Size  First Load JS
+┌ ƒ /                                          8.03 kB         114 kB
+├ ○ /_not-found                                  217 B         103 kB
+├ ƒ /account                                   1.91 kB         108 kB
+├ ƒ /admin                                     32.4 kB         135 kB
+├ ○ /agreement                                   785 B         107 kB
+├ ƒ /api/admin/billing/plans                     217 B         103 kB
+├ ƒ /api/admin/billing/plans/[id]                217 B         103 kB
+├ ƒ /api/admin/clients                           217 B         103 kB
+├ ƒ /api/admin/clients/[id]                      217 B         103 kB
+├ ƒ /api/admin/clients/[id]/reset-password       217 B         103 kB
+├ ƒ /api/admin/commerce                          217 B         103 kB
+├ ƒ /api/admin/integrations                      217 B         103 kB
+├ ƒ /api/admin/integrations/email/test           217 B         103 kB
+├ ƒ /api/admin/integrations/email/verify         217 B         103 kB
+├ ƒ /api/admin/leads                             217 B         103 kB
+├ ƒ /api/admin/leads/[id]                        217 B         103 kB
+├ ƒ /api/admin/leads/[id]/notifications/retry    217 B         103 kB
+├ ƒ /api/admin/orders                            217 B         103 kB
+├ ƒ /api/admin/orders/[id]                       217 B         103 kB
+├ ƒ /api/admin/projects                          217 B         103 kB
+├ ƒ /api/admin/projects/[id]                     217 B         103 kB
+├ ƒ /api/admin/services                          217 B         103 kB
+├ ƒ /api/admin/services/[id]                     217 B         103 kB
+├ ƒ /api/admin/services/[id]/media/[mediaId]     217 B         103 kB
+├ ƒ /api/admin/site-settings                     217 B         103 kB
+├ ƒ /api/auth/csrf                               217 B         103 kB
+├ ƒ /api/auth/login                              217 B         103 kB
+├ ƒ /api/auth/logout                             217 B         103 kB
+├ ƒ /api/auth/tz-id/callback                     217 B         103 kB
+├ ƒ /api/auth/tz-id/link                         217 B         103 kB
+├ ƒ /api/auth/tz-id/login                        217 B         103 kB
+├ ƒ /api/leads                                   217 B         103 kB
+├ ƒ /api/orders                                  217 B         103 kB
+├ ƒ /api/projects/[id]                           217 B         103 kB
+├ ƒ /api/uploads/[file]                          217 B         103 kB
+├ ƒ /dashboard                                   546 B         103 kB
+├ ○ /enter                                     3.46 kB         110 kB
+├ ○ /login                                     3.44 kB         106 kB
+├ ƒ /payment                                     785 B         107 kB
+├ ƒ /plans                                       785 B         107 kB
+├ ƒ /plans/[id]                                2.29 kB         108 kB
+├ ○ /privacy                                     785 B         107 kB
+├ ○ /robots.txt                                  217 B         103 kB
+├ ƒ /services/[slug]                             773 B         107 kB
+└ ƒ /sitemap.xml                                 217 B         103 kB
++ First Load JS shared by all                   103 kB
+  ├ chunks/1255-dc3ddf72a1dc71a7.js            46.6 kB
+  ├ chunks/4bd1b696-f785427dddbba9fb.js        54.2 kB
+  └ other shared chunks (total)                 1.9 kB
+
+
+ƒ Middleware                                   32.5 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

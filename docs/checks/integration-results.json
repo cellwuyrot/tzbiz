@@ -1,0 +1,21 @@
+{
+  "passed": 16,
+  "checks": [
+    "anonymous/client/CSRF protections",
+    "owner-controlled readiness settings",
+    "all three settlement modes, Premium and VPN mappings",
+    "renaming Premium preserves technical product identity",
+    "public projection hides internal notes",
+    "server-owned prices and per-user idempotent request keys",
+    "unpaid orders and TZ ID access cannot be activated by status checkbox",
+    "allowed service workflow and status audit",
+    "immutable snapshots and stale revision rejection",
+    "lead idempotency and atomic two-channel outbox",
+    "mail configuration failure persists retry jobs and lead",
+    "streaming range 206 and invalid range 416",
+    "service rename preserves permanent redirects",
+    "old service addresses cannot be assigned to another service",
+    "atomic shared-storage rate limiting",
+    "scheduled maintenance removes expired sessions, rates and login attempts"
+  ]
+}

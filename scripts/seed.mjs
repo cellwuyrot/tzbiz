@@ -13,14 +13,28 @@ if (password.length < 10) {
   throw new Error("ADMIN_PASSWORD must be at least 10 characters long.");
 }
 
-const content = JSON.parse(fs.readFileSync(new URL("../prisma/seed-content.json", import.meta.url), "utf8"));
+if (
+  process.env.NODE_ENV === "production" &&
+  (password.startsWith("replace-") || email.endsWith("@example.com"))
+)
+  throw new Error("Configure real production admin credentials, not examples.");
+
+const content = JSON.parse(
+  fs.readFileSync(
+    new URL("../prisma/seed-content.json", import.meta.url),
+    "utf8",
+  ),
+);
 const services = content.services;
 const settings = content.settings;
 
 const prisma = new PrismaClient();
 
 async function ensureService(service, sortOrder) {
-  const existing = await prisma.service.findUnique({ where: { slug: service.slug }, select: { id: true } });
+  const existing = await prisma.service.findUnique({
+    where: { slug: service.slug },
+    select: { id: true },
+  });
   if (existing) return false;
   await prisma.service.create({
     data: {
@@ -39,13 +53,17 @@ async function ensureService(service, sortOrder) {
 
 try {
   const passwordHash = await bcrypt.hash(password, 12);
-  await prisma.user.upsert({
+  const admin = await prisma.user.upsert({
     where: { email },
     update: { passwordHash, role: "ADMIN", name: "TRIOZ Admin" },
     create: { email, passwordHash, role: "ADMIN", name: "TRIOZ Admin" },
   });
 
-  const existingSettings = await prisma.siteSettings.findUnique({ where: { id: "site-settings" } });
+  await prisma.session.deleteMany({ where: { userId: admin.id } });
+
+  const existingSettings = await prisma.siteSettings.findUnique({
+    where: { id: "site-settings" },
+  });
   if (!existingSettings) {
     await prisma.siteSettings.create({
       data: { id: "site-settings", ...settings },
@@ -57,7 +75,11 @@ try {
     if (await ensureService(services[index], index + 1)) createdServices += 1;
   }
 
-  console.log("Seed complete: administrator, site settings, " + createdServices + " new services.");
+  console.log(
+    "Seed complete: administrator, site settings, " +
+      createdServices +
+      " new services.",
+  );
 } finally {
   await prisma.$disconnect();
 }

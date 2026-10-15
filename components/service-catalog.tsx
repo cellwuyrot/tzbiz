@@ -6,7 +6,13 @@ import { ScrollReveal } from "./scroll-reveal";
 import { ServiceCard } from "./service-card";
 import { ServiceModal } from "./service-modal";
 
-export function ServiceCatalog({ services, initialSlug }: { services: ServiceView[]; initialSlug?: string }) {
+export function ServiceCatalog({
+  services,
+  initialSlug,
+}: {
+  services: ServiceView[];
+  initialSlug?: string;
+}) {
   const [selectedSlug, setSelectedSlug] = useState(initialSlug);
 
   const selectedService = useMemo(
@@ -16,7 +22,8 @@ export function ServiceCatalog({ services, initialSlug }: { services: ServiceVie
 
   useEffect(() => {
     function syncFromUrl() {
-      const slug = new URL(window.location.href).searchParams.get("service") ?? undefined;
+      const slug =
+        new URL(window.location.href).searchParams.get("service") ?? undefined;
       setSelectedSlug(slug);
     }
 
@@ -32,10 +39,13 @@ export function ServiceCatalog({ services, initialSlug }: { services: ServiceVie
     window.dispatchEvent(new PopStateEvent("popstate"));
   }, []);
 
-  const openService = useCallback((slug: string, trigger: HTMLButtonElement) => {
-    trigger.focus();
-    syncUrl(slug);
-  }, [syncUrl]);
+  const openService = useCallback(
+    (slug: string, trigger: HTMLElement) => {
+      trigger.focus();
+      syncUrl(slug);
+    },
+    [syncUrl],
+  );
 
   const closeService = useCallback(() => {
     syncUrl();

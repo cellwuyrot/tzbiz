@@ -1,0 +1,21 @@
+import "dotenv/config";
+import { prisma } from "../lib/db";
+import { processMailBatch } from "../lib/mail-outbox";
+async function main() {
+  try {
+    const now = new Date();
+    await prisma.session.deleteMany({ where: { expiresAt: { lt: now } } });
+    await prisma.tzLoginAttempt.deleteMany({
+      where: { expiresAt: { lt: new Date(Date.now() - 3600_000) } },
+    });
+    await prisma.rateBucket.deleteMany({ where: { expiresAt: { lt: now } } });
+    const n = await processMailBatch();
+    console.log(`Maintenance complete; considered ${n} mail jobs.`);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+main().catch(() => {
+  console.error("Task failed; inspect the isolated test or server logs.");
+  process.exitCode = 1;
+});
