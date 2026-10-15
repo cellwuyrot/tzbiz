@@ -58,7 +58,7 @@ export async function beginTzLogin(
   return oidc.buildAuthorizationUrl(client, {
     response_type: "code",
     redirect_uri: config.callbackUrl,
-    scope: "openid profile email",
+    scope: "openid profile email roles:read",
     state: transaction.state,
     nonce: transaction.nonce,
     code_challenge: await oidc.calculatePKCECodeChallenge(transaction.verifier),
