@@ -42,39 +42,80 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (!verifyCsrf(request)) return jsonError("Неверный CSRF-токен.", 403);
 
   const { id } = await params;
-  if (!serviceIdSchema.safeParse({ id }).success) return jsonError("Услуга не найдена.", 404);
+  if (!serviceIdSchema.safeParse({ id }).success)
+    return jsonError("Услуга не найдена.", 404);
 
-  const current = await prisma.service.findUnique({ where: { id }, include: { media: true } });
+  const current = await prisma.service.findUnique({
+    where: { id },
+    include: { media: true },
+  });
   if (!current) return jsonError("Услуга не найдена.", 404);
 
   const form = await request.formData();
   const parsed = parseServiceForm(form);
-  if (!parsed.success) return jsonError("Проверьте поля услуги, списки и порядок.", 400);
+  if (!parsed.success)
+    return jsonError("Проверьте поля услуги, списки и порядок.", 400);
 
-  const duplicate = await prisma.service.findFirst({ where: { slug: parsed.data.slug, id: { not: id } }, select: { id: true } });
+  const aliasCollision = await prisma.serviceAlias.findUnique({
+    where: { slug: parsed.data.slug },
+  });
+  if (aliasCollision)
+    return jsonError(
+      "Этот адрес уже использовался. Выберите другой slug.",
+      409,
+    );
+
+  const duplicate = await prisma.service.findFirst({
+    where: { slug: parsed.data.slug, id: { not: id } },
+    select: { id: true },
+  });
   if (duplicate) return jsonError("Услуга с таким slug уже существует.", 409);
 
-  const files = form.getAll("media").filter((item): item is File => item instanceof File && item.size > 0);
+  const files = form
+    .getAll("media")
+    .filter((item): item is File => item instanceof File && item.size > 0);
   const saved: Awaited<ReturnType<typeof saveUploadedMedia>>[] = [];
   try {
     for (const file of files) saved.push(await saveUploadedMedia(file));
-    const nextSortStart = current.media.reduce((max, item) => Math.max(max, item.sortOrder), 0);
-    const service = await prisma.service.update({
-      where: { id },
-      data: {
-        ...parsed.data,
-        includes: serializeStringList(parsed.data.includes),
-        stages: serializeStringList(parsed.data.stages),
-        media: saved.length
-          ? { create: saved.map((item, index) => ({ type: item.kind, path: item.path, sortOrder: nextSortStart + index + 1 })) }
-          : undefined,
-      },
-      include: { media: { orderBy: { sortOrder: "asc" } } },
+    const nextSortStart = current.media.reduce(
+      (max, item) => Math.max(max, item.sortOrder),
+      0,
+    );
+    const service = await prisma.$transaction(async (tx) => {
+      if (current.slug !== parsed.data.slug)
+        await tx.serviceAlias.create({
+          data: { slug: current.slug, serviceId: id },
+        });
+      return tx.service.update({
+        where: { id },
+        data: {
+          ...parsed.data,
+          includes: serializeStringList(parsed.data.includes),
+          stages: serializeStringList(parsed.data.stages),
+          media: saved.length
+            ? {
+                create: saved.map((item, index) => ({
+                  type: item.kind,
+                  path: item.path,
+                  sortOrder: nextSortStart + index + 1,
+                })),
+              }
+            : undefined,
+        },
+        include: { media: { orderBy: { sortOrder: "asc" } } },
+      });
     });
     return NextResponse.json({ service: toServiceView(service) });
   } catch (error) {
     await Promise.all(saved.map((item) => removeUpload(item.path)));
-    if (error instanceof Error && (error.message.includes("Разрешены только") || error.message.includes("Размер") || error.message.includes("MIME") || error.message.includes("Расширение") || error.message.includes("формату изображения"))) {
+    if (
+      error instanceof Error &&
+      (error.message.includes("Разрешены только") ||
+        error.message.includes("Размер") ||
+        error.message.includes("MIME") ||
+        error.message.includes("Расширение") ||
+        error.message.includes("формату изображения"))
+    ) {
       return jsonError(error.message, 400);
     }
     throw error;
@@ -87,9 +128,13 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   if (!verifyCsrf(request)) return jsonError("Неверный CSRF-токен.", 403);
 
   const { id } = await params;
-  if (!serviceIdSchema.safeParse({ id }).success) return jsonError("Услуга не найдена.", 404);
+  if (!serviceIdSchema.safeParse({ id }).success)
+    return jsonError("Услуга не найдена.", 404);
 
-  const service = await prisma.service.findUnique({ where: { id }, include: { media: true } });
+  const service = await prisma.service.findUnique({
+    where: { id },
+    include: { media: true },
+  });
   if (!service) return jsonError("Услуга не найдена.", 404);
 
   await prisma.service.delete({ where: { id } });
@@ -101,10 +146,13 @@ export async function GET(_request: NextRequest, { params }: Params) {
   const auth = await requireApiRole("ADMIN");
   if (auth.response) return auth.response;
   const { id } = await params;
-  if (!serviceIdSchema.safeParse({ id }).success) return jsonError("Услуга не найдена.", 404);
+  if (!serviceIdSchema.safeParse({ id }).success)
+    return jsonError("Услуга не найдена.", 404);
   const service = await prisma.service.findUnique({
     where: { id },
-    include: { media: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] } },
+    include: {
+      media: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
+    },
   });
   if (!service) return jsonError("Услуга не найдена.", 404);
   return NextResponse.json({

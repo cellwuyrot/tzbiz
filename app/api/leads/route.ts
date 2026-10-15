@@ -2,100 +2,92 @@ import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { leadRequestSchema } from "@/lib/validation";
-import { sendLeadNotification } from "@/lib/mailer";
 import { AGREEMENT_VERSION, PRIVACY_VERSION } from "@/lib/legal";
-import { initialMailState, recordMailResult } from "@/lib/lead-notifications";
 import { jsonError } from "@/lib/security";
-
+import { consumeRate, requestIp } from "@/lib/rate-limit";
 export const runtime = "nodejs";
-
-const attempts = new Map<string, { count: number; resetAt: number }>();
-const WINDOW_MS = 15 * 60 * 1000;
-const MAX_ATTEMPTS = 4;
-
-function keyForRequest(request: NextRequest) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    || request.headers.get("x-real-ip")
-    || "unknown";
-  return crypto.createHash("sha256").update(ip).digest("hex");
+function sameOrigin(r: NextRequest) {
+  const o = r.headers.get("origin");
+  if (!o) return true;
+  const host = r.headers.get("host");
+  return [
+    new URL(r.url).origin,
+    host ? `${new URL(r.url).protocol}//${host}` : null,
+    process.env.NEXT_PUBLIC_APP_URL,
+  ]
+    .filter(Boolean)
+    .some((v) => new URL(String(v)).origin === o);
 }
-
-function rateLimited(key: string) {
-  const now = Date.now();
-  const current = attempts.get(key);
-  if (!current || current.resetAt <= now) {
-    attempts.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    return false;
+export async function POST(r: NextRequest) {
+  if (!sameOrigin(r)) return jsonError("Недопустимый источник запроса.", 403);
+  const p = leadRequestSchema.safeParse(await r.json().catch(() => null));
+  if (!p.success) return jsonError("Проверьте заполненные поля формы.", 400);
+  const rawKey = r.headers.get("idempotency-key");
+  if (rawKey && !/^[0-9a-f-]{36}$/i.test(rawKey))
+    return jsonError("Неверный ключ отправки.", 400);
+  const hash = crypto
+    .createHash("sha256")
+    .update(JSON.stringify(p.data))
+    .digest("hex");
+  async function duplicate() {
+    if (!rawKey) return null;
+    const old = await prisma.leadRequest.findUnique({
+      where: { submissionKey: rawKey },
+      select: { id: true, requestHash: true, createdAt: true },
+    });
+    if (!old) return null;
+    if (old.requestHash !== hash)
+      return jsonError("Ключ уже использован. Обновите форму.", 409);
+    return NextResponse.json(
+      { ok: true, id: old.id, emailNotified: false, queued: true },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   }
-  current.count += 1;
-  return current.count > MAX_ATTEMPTS;
-}
-
-function sameOrigin(request: NextRequest) {
-  const origin = request.headers.get("origin");
-  if (!origin) return true;
-  const allowed = new Set([new URL(request.url).origin, process.env.NEXT_PUBLIC_APP_URL].filter(Boolean).map((value) => new URL(String(value)).origin));
-  return allowed.has(origin);
-}
-
-export async function POST(request: NextRequest) {
-  if (!sameOrigin(request)) return jsonError("Недопустимый источник запроса.", 403);
-  if (rateLimited(keyForRequest(request))) return jsonError("Слишком много заявок. Попробуйте ещё раз позже.", 429);
-
-  const body = await request.json().catch(() => null);
-  const parsed = leadRequestSchema.safeParse(body);
-  if (!parsed.success) return jsonError("Проверьте заполненные поля формы.", 400);
-  if (parsed.data.website) return jsonError("Заявка отклонена.", 400);
-
-  let saved;
   try {
+    const old = await duplicate();
+    if (old) return old;
+    const limit = await consumeRate("leads", requestIp(r), 4, 900_000);
+    if (!limit.allowed)
+      return jsonError("Слишком много заявок. Попробуйте позже.", 429, {
+        "Retry-After": String(limit.retryAfter),
+      });
     const service = await prisma.service.findFirst({
-      where: { slug: parsed.data.serviceSlug, isPublished: true },
+      where: { slug: p.data.serviceSlug, isPublished: true },
       select: { id: true, slug: true, title: true },
     });
     if (!service) return jsonError("Выбранная услуга недоступна.", 400);
-  
-    const acceptedAt = new Date();
+    const now = new Date();
     const lead = await prisma.leadRequest.create({
       data: {
-        ...initialMailState(acceptedAt),
-        name: parsed.data.name,
-        email: parsed.data.email,
-        phone: parsed.data.phone,
-        company: parsed.data.company,
+        name: p.data.name,
+        email: p.data.email,
+        phone: p.data.phone,
+        company: p.data.company,
         serviceId: service.id,
         serviceTitle: service.title,
-        message: parsed.data.message,
-        privacyConsentAt: acceptedAt,
-        agreementAcceptedAt: acceptedAt,
+        message: p.data.message,
+        privacyConsentAt: now,
+        agreementAcceptedAt: now,
         agreementVersion: AGREEMENT_VERSION,
         privacyVersion: PRIVACY_VERSION,
+        submissionKey: rawKey,
+        requestHash: hash,
+        clientEmailStatus: "PENDING",
+        internalEmailStatus: "PENDING",
+        clientEmailAttempts: 0,
+        internalEmailAttempts: 0,
+        jobs: { create: [{ channel: "client" }, { channel: "internal" }] },
       },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        company: true,
-        serviceTitle: true,
-        message: true,
-        createdAt: true,
-      },
+      select: { id: true },
     });
-    saved = { ...lead, serviceSlug: service.slug };
+    return NextResponse.json(
+      { ok: true, id: lead.id, emailNotified: false, queued: true },
+      { status: 201, headers: { "Cache-Control": "no-store" } },
+    );
   } catch {
+    const old = await duplicate().catch(() => null);
+    if (old) return old;
     console.error("Lead persistence failed");
-    return jsonError("Не удалось сохранить заявку. Попробуйте позже.", 500);
+    return jsonError("Не удалось сохранить заявку. Повторите отправку.", 503);
   }
-
-  let emailNotified = false;
-  try {
-    const result = await sendLeadNotification(saved, async (channel, outcome) => { await recordMailResult(saved.id, channel, 1, outcome); });
-    emailNotified = result.clientNotified && result.internalNotified;
-  } catch {
-    await Promise.allSettled((["client", "internal"] as const).map(channel => recordMailResult(saved.id, channel, 1, { status: "UNKNOWN", errorCategory: "UNKNOWN" })));
-    console.error("Lead email notification failed");
-  }
-
-  return NextResponse.json({ ok: true, emailNotified }, { status: 201 });
 }

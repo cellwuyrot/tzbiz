@@ -1,0 +1,2 @@
+Prisma schema loaded from prisma/schema.postgresql.prisma
+The schema at prisma/schema.postgresql.prisma is valid 🚀

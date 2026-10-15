@@ -1,88 +1,134 @@
-import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { NextRequest } from "next/server";
-vi.mock("@/lib/db", () => ({ prisma: { service: { findFirst: vi.fn() }, leadRequest: { create: vi.fn(), updateMany: vi.fn() } } }));
-vi.mock("@/lib/mailer", () => ({ sendLeadNotification: vi.fn() }));
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    service: { findFirst: vi.fn() },
+    leadRequest: { create: vi.fn(), findUnique: vi.fn() },
+  },
+}));
+vi.mock("@/lib/rate-limit", () => ({
+  consumeRate: vi.fn(),
+  requestIp: () => "test",
+}));
 import { prisma } from "@/lib/db";
-import { sendLeadNotification } from "@/lib/mailer";
-import { AGREEMENT_VERSION, PRIVACY_VERSION } from "@/lib/legal";
+import { consumeRate } from "@/lib/rate-limit";
 import { POST } from "@/app/api/leads/route";
-
-const body = { name: "Иван Тест", email: "client@example.com", phone: "+70000000000", company: "", serviceSlug: "service-test", message: "Тестовая задача без персональных сведений.", privacyConsent: true, agreementAccepted: true, website: "" };
-let sequence = 0;
-function request(data: unknown = body, origin = "http://localhost:3000", ip = `test-${++sequence}`) {
-  return new NextRequest("http://localhost:3000/api/leads", { method: "POST", headers: { origin, "content-type": "application/json", "x-forwarded-for": ip }, body: JSON.stringify(data) });
+import { AGREEMENT_VERSION, PRIVACY_VERSION } from "@/lib/legal";
+const data = {
+  name: "Тестовый клиент",
+  email: "test@example.test",
+  phone: "+79990000000",
+  company: "",
+  serviceSlug: "test-service",
+  message: "Тестовое описание задачи",
+  privacyConsent: true,
+  agreementAccepted: true,
+  website: "",
+};
+function request(
+  body: unknown = data,
+  origin = "http://localhost:3000",
+  key?: string,
+) {
+  return new NextRequest("http://localhost:3000/api/leads", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin,
+      ...(key ? { "idempotency-key": key } : {}),
+    },
+    body: JSON.stringify(body),
+  });
 }
-describe("lead durability and consent", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-    vi.mocked(prisma.leadRequest.updateMany).mockResolvedValue({ count: 1 });
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    vi.mocked(prisma.service.findFirst).mockResolvedValue({ id: "service-1", slug: body.serviceSlug, title: "Test" } as never);
-    vi.mocked(prisma.leadRequest.create).mockResolvedValue({ id: "lead-1", ...body, serviceTitle: "Test", createdAt: new Date() } as never);
-    vi.mocked(sendLeadNotification).mockResolvedValue({ clientNotified: true, internalNotified: true });
-  });
-  afterEach(() => vi.restoreAllMocks());
-  it.each([
-    { clientNotified: true, internalNotified: true }, { clientNotified: false, internalNotified: true },
-    { clientNotified: true, internalNotified: false }, { clientNotified: false, internalNotified: false },
-  ])("keeps a saved lead and reports aggregate acceptance: %j", async (result) => {
-    vi.mocked(sendLeadNotification).mockImplementation(async () => {
-      expect(prisma.leadRequest.create).toHaveBeenCalledTimes(1);
-      return result;
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(consumeRate).mockResolvedValue({ allowed: true, retryAfter: 0 });
+  vi.mocked(prisma.service.findFirst).mockResolvedValue({
+    id: "svc",
+    slug: "test-service",
+    title: "Тест",
+  } as never);
+  vi.mocked(prisma.leadRequest.create).mockResolvedValue({
+    id: "lead",
+  } as never);
+  vi.mocked(prisma.leadRequest.findUnique).mockResolvedValue(null);
+});
+describe("durable public leads", () => {
+  it("atomically creates both outbox channels and immediately returns queued, not delivered", async () => {
+    const r = await POST(request());
+    expect(r.status).toBe(201);
+    expect(await r.json()).toMatchObject({
+      ok: true,
+      id: "lead",
+      emailNotified: false,
+      queued: true,
     });
-    const response = await POST(request());
-    expect(response.status).toBe(201);
-    expect(await response.json()).toEqual({ ok: true, emailNotified: result.clientNotified && result.internalNotified });
-    expect(prisma.leadRequest.create).toHaveBeenCalledTimes(1);
+    expect(prisma.leadRequest.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          jobs: { create: [{ channel: "client" }, { channel: "internal" }] },
+          clientEmailAttempts: 0,
+          internalEmailAttempts: 0,
+        }),
+      }),
+    );
   });
-  it("also keeps the saved lead after an unexpected mailer exception", async () => {
-    vi.mocked(sendLeadNotification).mockRejectedValue(new Error("secret SMTP error"));
-    const response = await POST(request());
-    expect(response.status).toBe(201); expect(await response.json()).toEqual({ ok: true, emailNotified: false });
-    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret");
+  it.each(["privacyConsent", "agreementAccepted"])("requires %s", async (k) => {
+    for (const v of [false, undefined, "true"])
+      expect((await POST(request({ ...data, [k]: v }))).status).toBe(400);
+    expect(prisma.leadRequest.create).not.toHaveBeenCalled();
   });
-  it("persists independent channel outcomes after saving", async () => {
-    vi.mocked(sendLeadNotification).mockImplementation(async (_lead, callback) => {
-      expect(prisma.leadRequest.create).toHaveBeenCalledTimes(1);
-      await callback!("client", { status: "FAILED", errorCategory: "AUTH" });
-      await callback!("internal", { status: "SMTP_ACCEPTED", errorCategory: null });
-      return { clientNotified: false, internalNotified: true };
-    });
-    expect((await POST(request())).status).toBe(201);
-    expect(prisma.leadRequest.updateMany).toHaveBeenCalledWith({ where: { id: "lead-1", clientEmailStatus: "PENDING", clientEmailAttempts: 1 }, data: { clientEmailStatus: "FAILED", clientEmailErrorCategory: "AUTH" } });
-    expect(prisma.leadRequest.updateMany).toHaveBeenCalledWith({ where: { id: "lead-1", internalEmailStatus: "PENDING", internalEmailAttempts: 1 }, data: { internalEmailStatus: "SMTP_ACCEPTED", internalEmailErrorCategory: null } });
-  });
-  it("records server timestamps and document versions", async () => {
+  it("records server time and actual document versions", async () => {
     await POST(request());
-    const data = vi.mocked(prisma.leadRequest.create).mock.calls[0][0].data;
-    expect(data).toMatchObject({ agreementVersion: AGREEMENT_VERSION, privacyVersion: PRIVACY_VERSION });
-    expect(data.privacyConsentAt).toBeInstanceOf(Date); expect(data.agreementAcceptedAt).toEqual(data.privacyConsentAt);
+    const d = vi.mocked(prisma.leadRequest.create).mock.calls[0][0].data;
+    expect(d.agreementVersion).toBe(AGREEMENT_VERSION);
+    expect(d.privacyVersion).toBe(PRIVACY_VERSION);
+    expect(d.privacyConsentAt).toBeInstanceOf(Date);
+    expect(d.agreementAcceptedAt).toEqual(d.privacyConsentAt);
   });
-  it.each(["privacyConsent", "agreementAccepted"])("requires %s independently", async (field) => {
-    for (const value of [false, undefined, "true"]) {
-      const response = await POST(request({ ...body, [field]: value }));
-      expect(response.status).toBe(400);
-    }
-    expect(prisma.leadRequest.create).not.toHaveBeenCalled();
-  });
-  it("rejects an unpublished service without mail", async () => {
+  it("does not queue unpublished services", async () => {
     vi.mocked(prisma.service.findFirst).mockResolvedValue(null);
-    expect((await POST(request())).status).toBe(400); expect(sendLeadNotification).not.toHaveBeenCalled();
-  });
-  it("returns safe JSON on DB failure and never sends before saving", async () => {
-    vi.mocked(prisma.leadRequest.create).mockRejectedValue(new Error("private database credentials"));
-    const response = await POST(request());
-    expect(response.status).toBe(500); expect(JSON.stringify(await response.json())).not.toContain("private");
-    expect(sendLeadNotification).not.toHaveBeenCalled();
-  });
-  it("rejects foreign Origin and honeypot submissions", async () => {
-    expect((await POST(request(body, "https://foreign.example"))).status).toBe(403);
-    expect((await POST(request({ ...body, website: "bot" }))).status).toBe(400);
+    expect((await POST(request())).status).toBe(400);
     expect(prisma.leadRequest.create).not.toHaveBeenCalled();
   });
-  it("limits the fifth attempt from one key", async () => {
-    const ip = `rate-test-${++sequence}`;
-    for (let i = 0; i < 4; i++) expect((await POST(request(body, "http://localhost:3000", ip))).status).toBe(201);
-    expect((await POST(request(body, "http://localhost:3000", ip))).status).toBe(429);
+  it("rejects foreign origin and honeypot", async () => {
+    expect((await POST(request(data, "https://other.test"))).status).toBe(403);
+    expect((await POST(request({ ...data, website: "spam" }))).status).toBe(
+      400,
+    );
+  });
+  it("returns retryable response on persistence failure without exposing credentials", async () => {
+    vi.mocked(prisma.leadRequest.create).mockRejectedValue(
+      new Error("private credentials"),
+    );
+    const r = await POST(request());
+    expect(r.status).toBe(503);
+    expect(JSON.stringify(await r.json())).not.toContain("private");
+  });
+  it("limits requests in shared storage", async () => {
+    vi.mocked(consumeRate).mockResolvedValue({
+      allowed: false,
+      retryAfter: 10,
+    });
+    const r = await POST(request());
+    expect(r.status).toBe(429);
+    expect(r.headers.get("retry-after")).toBe("10");
+  });
+  it("does not reveal a lead for a reused key with a different body", async () => {
+    vi.mocked(prisma.leadRequest.findUnique).mockResolvedValue({
+      id: "old",
+      requestHash: "other",
+    } as never);
+    expect(
+      (
+        await POST(
+          request(data, undefined, "00000000-0000-4000-8000-000000000001"),
+        )
+      ).status,
+    ).toBe(409);
+    expect(prisma.leadRequest.create).not.toHaveBeenCalled();
+  });
+  it("rejects malformed idempotency keys", async () => {
+    expect((await POST(request(data, undefined, "invalid"))).status).toBe(400);
   });
 });

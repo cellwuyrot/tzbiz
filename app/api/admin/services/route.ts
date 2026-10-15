@@ -39,7 +39,9 @@ export async function GET() {
   if (auth.response) return auth.response;
   const services = await prisma.service.findMany({
     orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
-    include: { media: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] } },
+    include: {
+      media: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
+    },
   });
   return NextResponse.json({ services: services.map(toServiceView) });
 }
@@ -64,12 +66,25 @@ export async function POST(request: NextRequest) {
 
   const form = await request.formData();
   const parsed = parseServiceForm(form);
-  if (!parsed.success) return jsonError("Проверьте поля услуги, списки и порядок.", 400);
+  if (!parsed.success)
+    return jsonError("Проверьте поля услуги, списки и порядок.", 400);
 
-  const duplicate = await prisma.service.findUnique({ where: { slug: parsed.data.slug }, select: { id: true } });
+  if (
+    await prisma.serviceAlias.findUnique({ where: { slug: parsed.data.slug } })
+  )
+    return jsonError(
+      "Этот адрес уже использовался. Выберите другой slug.",
+      409,
+    );
+  const duplicate = await prisma.service.findUnique({
+    where: { slug: parsed.data.slug },
+    select: { id: true },
+  });
   if (duplicate) return jsonError("Услуга с таким slug уже существует.", 409);
 
-  const files = form.getAll("media").filter((item): item is File => item instanceof File && item.size > 0);
+  const files = form
+    .getAll("media")
+    .filter((item): item is File => item instanceof File && item.size > 0);
   let saved: Awaited<ReturnType<typeof saveUploadedMedia>>[] = [];
   try {
     saved = await saveMediaFiles(files);
@@ -88,11 +103,20 @@ export async function POST(request: NextRequest) {
       },
       include: { media: { orderBy: { sortOrder: "asc" } } },
     });
-    return NextResponse.json({ service: toServiceView(service) }, { status: 201 });
+    return NextResponse.json(
+      { service: toServiceView(service) },
+      { status: 201 },
+    );
   } catch (error) {
     await Promise.all(saved.map((item) => removeUpload(item.path)));
     if (error instanceof Error) {
-      if (error.message.includes("Разрешены только") || error.message.includes("Размер") || error.message.includes("MIME") || error.message.includes("Расширение") || error.message.includes("формату изображения")) {
+      if (
+        error.message.includes("Разрешены только") ||
+        error.message.includes("Размер") ||
+        error.message.includes("MIME") ||
+        error.message.includes("Расширение") ||
+        error.message.includes("формату изображения")
+      ) {
         return jsonError(error.message, 400);
       }
     }
@@ -103,5 +127,8 @@ export async function POST(request: NextRequest) {
 export async function PATCH() {
   const auth = await requireApiRole("ADMIN");
   if (auth.response) return auth.response;
-  return NextResponse.json({ error: "Для изменения услуги используйте /api/admin/services/<id>." }, { status: 405 });
+  return NextResponse.json(
+    { error: "Для изменения услуги используйте /api/admin/services/<id>." },
+    { status: 405 },
+  );
 }

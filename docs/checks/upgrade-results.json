@@ -1,0 +1,6 @@
+{
+  "upgrade_0006_to_0007": "PASS",
+  "legacy_user_and_session_preserved": true,
+  "legacy_premium_hidden_until_mapping": true,
+  "foreign_key_check": "PASS"
+}

@@ -1,0 +1,5 @@
+
+> trioz-services-portal@1.0.0 jobs:run
+> tsx scripts/jobs.ts
+
+Maintenance complete; considered 0 mail jobs.

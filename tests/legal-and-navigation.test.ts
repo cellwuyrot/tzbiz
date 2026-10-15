@@ -16,8 +16,11 @@ describe("legal documents and public navigation", () => {
   it("links documents in separate required checkboxes and a new tab", () => {
     const form = fs.readFileSync("components/lead-form.tsx", "utf8");
     expect(form).toContain('name="agreementAccepted"'); expect(form).toContain('name="privacyConsent"');
-    for (const path of ["agreement", "privacy"]) expect(form).toContain(`href="/${path}" target="_blank" rel="noopener noreferrer"`);
-    expect(form.match(/type="checkbox"[^\n]*required/g)).toHaveLength(2);
+    for (const path of ["agreement", "privacy"]) {
+      const link = form.match(/<a\b[^>]*>/g)?.find(tag => tag.includes(`href="/${path}"`));
+      expect(link).toContain('target="_blank"'); expect(link).toContain('rel="noopener noreferrer"');
+    }
+    expect(form.match(/<input\b[^>]*>/g)?.filter(tag => tag.includes('type="checkbox"') && /\brequired\b/.test(tag))).toHaveLength(2);
   });
   it("does not add private routes to public navigation", () => {
     for (const file of ["app/page.tsx", "components/site-header.tsx", "components/legal-document.tsx", "app/services/[slug]/page.tsx"]) {

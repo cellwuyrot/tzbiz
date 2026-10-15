@@ -1,3 +1,6 @@
+import { createReadStream } from "node:fs";
+import { Readable } from "node:stream";
+import { parseRange } from "@/lib/http-range";
 import fs from "node:fs/promises";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
@@ -41,8 +44,8 @@ export async function GET(_request: Request, { params }: Params) {
 
   if (!allowed) return new NextResponse(null, { status: 404 });
 
-  const data = await fs.readFile(filePath).catch(() => null);
-  if (!data) return new NextResponse(null, { status: 404 });
+  const stat = await fs.stat(filePath).catch(() => null);
+  if (!stat?.isFile()) return new NextResponse(null, { status: 404 });
 
   const extension = file.split(".").at(-1) ?? "";
   const kind = mediaKindFromExtension(file);
@@ -52,9 +55,12 @@ export async function GET(_request: Request, { params }: Params) {
     "X-Content-Type-Options": "nosniff",
   };
 
-  if (kind === "VIDEO") {
-    return new NextResponse(data, { status: 200, headers });
-  }
-
-  return new NextResponse(data, { status: 200, headers });
+  const range = kind === "VIDEO" ? parseRange(_request.headers.get("range"), stat.size) : null;
+  if (range === "invalid") return new NextResponse(null, { status: 416, headers: { ...headers, "Content-Range": `bytes */${stat.size}`, "Accept-Ranges": "bytes" } });
+  const contentHeaders = { ...headers, "Accept-Ranges": kind === "VIDEO" ? "bytes" : "none", "Content-Length": String(range ? range.end - range.start + 1 : stat.size), ...(range ? { "Content-Range": `bytes ${range.start}-${range.end}/${stat.size}` } : {}) };
+  if (_request.method === "HEAD") return new NextResponse(null, { status: range ? 206 : 200, headers: contentHeaders });
+  const stream = createReadStream(filePath, range || undefined);
+  return new NextResponse(Readable.toWeb(stream) as ReadableStream, { status: range ? 206 : 200, headers: contentHeaders });
 }
+
+export const HEAD = GET;
