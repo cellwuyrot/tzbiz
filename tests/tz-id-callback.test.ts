@@ -1,6 +1,7 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
 import { NextRequest } from "next/server";
 const mocks = vi.hoisted(() => ({ cookies: { get: vi.fn(), set: vi.fn() }, client: {}, grant: vi.fn(), userinfo: vi.fn() }));
+vi.mock("@/lib/tz-id/project-role", () => ({ readTzProjectRole: vi.fn(async () => "CLIENT") }));
 vi.mock("next/headers", () => ({ cookies: vi.fn(async () => mocks.cookies) }));
 vi.mock("@/lib/auth", () => ({ createSession: vi.fn(), getCurrentUser: vi.fn() }));
 vi.mock("@/lib/tz-id/config", () => ({ getTzIdConfig: () => ({ issuer: "https://id.trioz.ru", callbackUrl: "https://business.trioz.ru/api/auth/tz-id/callback" }) }));
@@ -8,12 +9,13 @@ vi.mock("@/lib/tz-id/client", () => ({ tzIdClient: vi.fn(async () => mocks.clien
 vi.mock("@/lib/tz-id/crypto", () => ({ sealTzData: vi.fn(() => "encrypted-access") }));
 vi.mock("@/lib/tz-id/flow", () => ({ TZ_TRANSACTION_COOKIE: "tz_business_oidc", readTzTransaction: vi.fn(), consumeTzTransaction: vi.fn(), resolveTzIdentity: vi.fn() }));
 vi.mock("openid-client", () => ({ authorizationCodeGrant: mocks.grant, fetchUserInfo: mocks.userinfo }));
+import { readTzProjectRole } from "@/lib/tz-id/project-role";
 import { readTzTransaction, consumeTzTransaction, resolveTzIdentity } from "@/lib/tz-id/flow";
 import { createSession, getCurrentUser } from "@/lib/auth";
 import { GET } from "@/app/api/auth/tz-id/callback/route";
 const flow = { state: "state".repeat(10), nonce: "nonce".repeat(10), verifier: "verifier".repeat(10), expiresAt: Date.now() + 600000, localUserId: null };
 beforeEach(() => {
-  vi.clearAllMocks(); mocks.cookies.get.mockReturnValue({ value: "encrypted-flow" });
+  vi.clearAllMocks(); vi.mocked(readTzProjectRole).mockResolvedValue("CLIENT"); mocks.cookies.get.mockReturnValue({ value: "encrypted-flow" });
   vi.mocked(readTzTransaction).mockReturnValue(flow); vi.mocked(consumeTzTransaction).mockResolvedValue(undefined);
   mocks.grant.mockResolvedValue({ access_token: "private-access", expires_in: 300, claims: () => ({ sub: "central-sub", iss: "https://id.trioz.ru", exp: Math.floor(Date.now() / 1000) + 300 }) });
   mocks.userinfo.mockResolvedValue({ sub: "central-sub", email: "test@example.com", email_verified: true });
@@ -28,6 +30,15 @@ describe("OIDC callback boundary", () => {
     expect(mocks.userinfo).toHaveBeenCalledWith(mocks.client, "private-access", "central-sub");
     expect(createSession).toHaveBeenCalledWith("local-user", expect.objectContaining({ tzSubject: "central-sub", tzAccessTokenEncrypted: "encrypted-access" }));
     expect(JSON.stringify(response.headers.get("location"))).not.toContain("private");
+  });
+  it("opens the full admin area only for a server-verified Business grant", async () => {
+    vi.mocked(readTzProjectRole).mockResolvedValue("ADMIN");
+    expect((await GET(req())).headers.get("location")).toBe("https://business.trioz.ru/admin");
+  });
+  it("preserves a selected plan even for an administrator", async () => {
+    vi.mocked(readTzProjectRole).mockResolvedValue("ADMIN");
+    vi.mocked(readTzTransaction).mockReturnValue({ ...flow, returnTo: "/plans/cm123456789012345678901234" });
+    expect((await GET(req())).headers.get("location")).toBe("https://business.trioz.ru/plans/cm123456789012345678901234");
   });
   it("rejects missing flow before token exchange", async () => {
     mocks.cookies.get.mockReturnValue(undefined);

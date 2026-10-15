@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import type { Role, User } from "@prisma/client";
 import { prisma } from "./db";
 import { isActiveTzSession } from "./tz-id/client";
+import { readTzProjectRole } from "./tz-id/project-role";
 
 export const SESSION_COOKIE = "trioz_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
@@ -97,7 +98,10 @@ export async function getCurrentUser(): Promise<User | null> {
       .catch(() => undefined);
     return null;
   }
-  return session.user;
+  // Only a current grant for this OIDC client can grant admin access in a TZ ID session.
+  return session.tzIssuer
+    ? { ...session.user, role: await readTzProjectRole(session) }
+    : session.user;
 }
 
 export async function requireRole(role: Role) {

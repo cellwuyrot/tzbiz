@@ -1,3 +1,4 @@
+import { readTzProjectRole } from "@/lib/tz-id/project-role";
 import { safeReturnTo } from "@/lib/return-to";
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
@@ -74,9 +75,12 @@ export async function GET(request: NextRequest) {
       tzSubject: claims.sub,
       tzAccessTokenEncrypted: sealTzData(token.access_token),
     });
-    return NextResponse.redirect(
-      new URL(safeReturnTo(transaction.returnTo), SITE_URL),
-    );
+    let destination = safeReturnTo(transaction.returnTo);
+    if (destination === "/account") {
+      const role = await readTzProjectRole({ tzIssuer: config.issuer, tzSubject: claims.sub, tzAccessTokenEncrypted: sealTzData(token.access_token) });
+      if (role === "ADMIN") destination = "/admin";
+    }
+    return NextResponse.redirect(new URL(destination, SITE_URL));
   } catch {
     // No tokens, raw provider errors, email or credentials in logs/public responses.
     return NextResponse.redirect(new URL("/plans?auth=failed", SITE_URL));
