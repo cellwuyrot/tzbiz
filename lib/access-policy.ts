@@ -4,6 +4,9 @@ export function canAccessRole(actualRole: Role, requiredRole: Role) {
   return actualRole === requiredRole;
 }
 
-export function canAccessClientProject(userId: string, projectClientId: string | null) {
+export function canAccessClientProject(
+  userId: string,
+  projectClientId: string | null,
+) {
   return projectClientId === userId;
 }

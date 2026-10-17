@@ -14,7 +14,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         isPublished: true,
         isArchived: false,
         OR: [
-          { kind: { in: ["PREMIUM", "VPN"] } },
+          { kind: { in: ["PREMIUM", "VPN", "PRODUCT"] } },
           { kind: "SERVICE", service: { isPublished: true } },
         ],
       },
@@ -27,6 +27,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/plans`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${base}/agreement`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/privacy`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${base}/documents`, changeFrequency: "monthly", priority: 0.3 },
+    ...["offer", "cookies", "consent"].map((slug) => ({
+      url: `${base}/documents/${slug}`,
+      changeFrequency: "monthly" as const,
+      priority: 0.3,
+    })),
     ...plans.map((plan) => ({
       url: `${base}/plans/${plan.id}`,
       lastModified: plan.updatedAt,

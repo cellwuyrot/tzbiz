@@ -1,6 +1,6 @@
 {
   "name": "trioz-services-portal",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -22,7 +22,9 @@
     "launch:check": "tsx scripts/launch-check.ts",
     "test:invoices": "node scripts/invoices-check.mjs",
     "content:labels": "tsx scripts/rename-display-labels.ts",
-    "test:admin": "node scripts/admin-crud-check.mjs"
+    "test:admin": "node scripts/admin-crud-check.mjs",
+    "test:catalog": "node scripts/catalog-privacy-check.mjs",
+    "legal:templates": "tsx scripts/export-legal.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.16.0",

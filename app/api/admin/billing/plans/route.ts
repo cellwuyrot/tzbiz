@@ -3,6 +3,7 @@ import { requireApiRole } from "@/lib/api-auth";
 import { prisma } from "@/lib/db";
 import { planInputSchema } from "@/lib/billing/plan";
 import { saveBillingPlan } from "@/lib/billing/admin";
+import { diagnosticResponse } from "@/lib/diagnostics";
 import { jsonError, verifyCsrf } from "@/lib/security";
 export const runtime = "nodejs";
 export async function GET() {
@@ -29,8 +30,8 @@ export async function GET() {
       },
       { headers: { "Cache-Control": "private, no-store" } },
     );
-  } catch {
-    return jsonError("Не удалось загрузить тарифы. Проверьте миграции.", 500);
+  } catch (e) {
+    return diagnosticResponse("catalog.read", e);
   }
 }
 export async function POST(request: NextRequest) {
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
       status: 201,
       headers: { "Cache-Control": "private, no-store" },
     });
-  } catch {
-    return jsonError("Не удалось сохранить тариф.", 500);
+  } catch (e) {
+    return diagnosticResponse("catalog.create", e);
   }
 }

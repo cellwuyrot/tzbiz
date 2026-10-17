@@ -8,6 +8,20 @@ vi.mock("@/lib/rate-limit", () => ({
   requestIp: () => "test",
 }));
 import { prisma } from "@/lib/db";
+vi.mock("@/lib/legal-store", async (original) => {
+  const actual = await original<typeof import("@/lib/legal-store")>();
+  return {
+    ...actual,
+    legalState: async () => ({
+      ready: true,
+      versions: {
+        agreement: "published-agreement",
+        privacy: "published-privacy",
+        consent: "published-consent",
+      },
+    }),
+  };
+});
 import { POST } from "@/app/api/leads/route";
 it("binds a lead to the actual published service, never a browser-provided title", async () => {
   vi.mocked(prisma.service.findFirst).mockResolvedValue({
@@ -30,6 +44,11 @@ it("binds a lead to the actual published service, never a browser-provided title
         message: "Detailed message",
         agreementAccepted: true,
         privacyConsent: true,
+        legalVersions: {
+          agreement: "published-agreement",
+          privacy: "published-privacy",
+          consent: "published-consent",
+        },
       }),
     }),
   );

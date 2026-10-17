@@ -114,6 +114,7 @@ model SiteSettings {
 }
 
 model LeadRequest {
+  legalSnapshot String @default("")
   id            String     @id @default(cuid())
   name          String
   email         String
@@ -185,6 +186,13 @@ model TzLoginAttempt {
   @@index([expiresAt])
 }
 model BillingPlan {
+  productType String @default("SERVICE")
+  projectKey String @default("business")
+  projectUrl String @default("https://business.trioz.ru")
+  cardImageUrl String @default("")
+  features String @default("")
+  fulfillmentTerms String @default("")
+
   id String @id @default(cuid())
   kind String
   serviceId String?
@@ -328,4 +336,30 @@ model Invoice {
 model MaintenanceState {
  key String @id
  lastSuccessAt DateTime
+}
+
+model LegalPage {
+  slug String @id
+  title String
+  body String
+  revision Int @default(1)
+  publishedVersion String?
+  updatedAt DateTime @updatedAt
+}
+model LegalPublication {
+  id String @id @default(cuid())
+  slug String
+  version String @unique
+  title String
+  body String
+  digest String
+  actorId String
+  publishedAt DateTime @default(now())
+  @@index([slug, publishedAt])
+}
+model PageViewDaily {
+  day String
+  path String
+  views Int @default(0)
+  @@id([day, path])
 }

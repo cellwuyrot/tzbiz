@@ -1,13 +1,19 @@
+import { diagnosticResponse } from "@/lib/diagnostics";
 import { consumeRate } from "@/lib/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { verifyCsrf, jsonError } from "@/lib/security";
 import { orderInput, orderHash } from "@/lib/billing/order";
-import { AGREEMENT_VERSION, PRIVACY_VERSION } from "@/lib/legal";
+import { legalState, versionsMatch, LEGAL_SLUGS } from "@/lib/legal-store";
 import { publicPlan } from "@/lib/billing/plan";
 export async function POST(r: NextRequest) {
-  const user = await getCurrentUser();
+  let user;
+  try {
+    user = await getCurrentUser();
+  } catch (e) {
+    return diagnosticResponse("orders.auth", e);
+  }
   if (!user) return jsonError("Войдите в аккаунт и повторите отправку.", 401);
   if (!verifyCsrf(r)) return jsonError("Неверный CSRF-токен.", 403);
   const p = orderInput.safeParse(await r.json().catch(() => null));
@@ -27,6 +33,13 @@ export async function POST(r: NextRequest) {
         return existing.requestHash === hash
           ? { order: existing, reused: true }
           : { conflict: true };
+      const legal = await legalState(tx);
+      if (!legal.ready) return { legalNotReady: true };
+      if (
+        !versionsMatch(legal.versions, p.data.legalVersions, LEGAL_SLUGS) ||
+        !p.data.offerAccepted
+      )
+        return { legalStale: true };
       const plan = await tx.billingPlan.findUnique({
         where: { id: p.data.planId },
         include: {
@@ -55,8 +68,12 @@ export async function POST(r: NextRequest) {
           ? { issuer: identity.issuer, subject: identity.subject }
           : null,
         terms,
-        agreementVersion: AGREEMENT_VERSION,
-        privacyVersion: PRIVACY_VERSION,
+        agreementVersion: legal.versions.agreement,
+        privacyVersion: legal.versions.privacy,
+        legalVersions: legal.versions,
+        offerAcknowledged: true,
+        consentPurpose:
+          "Рассмотрение заявки и исполнение согласованного заказа; без рекламы и автосписаний",
         notice:
           "Заявка не подтверждает оплату, доступ или подписку. Требуется согласование.",
       });
@@ -84,6 +101,16 @@ export async function POST(r: NextRequest) {
       });
       return { order, reused: false };
     });
+    if (result.legalNotReady)
+      return jsonError(
+        "Владелец ещё не опубликовал обязательные документы.",
+        503,
+      );
+    if (result.legalStale)
+      return jsonError(
+        "Документы изменились или согласия отсутствуют. Обновите страницу и прочитайте актуальные редакции.",
+        409,
+      );
     if (result.conflict)
       return jsonError(
         "Ключ повторной отправки уже использован с другими данными.",
@@ -111,7 +138,7 @@ export async function POST(r: NextRequest) {
         headers: { "Cache-Control": "private, no-store" },
       },
     );
-  } catch {
+  } catch (error) {
     // Concurrent identical submit may hit the unique key after the initial lookup.
     const existing = await prisma.businessOrder
       .findUnique({
@@ -125,9 +152,6 @@ export async function POST(r: NextRequest) {
         { id: existing.id, status: existing.status, paymentConfirmed: false },
         { headers: { "Cache-Control": "private, no-store" } },
       );
-    return jsonError(
-      "Не удалось сохранить. Повторите отправку: тот же ключ не создаст дубликат.",
-      503,
-    );
+    return diagnosticResponse("orders.create", error);
   }
 }

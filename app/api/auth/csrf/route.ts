@@ -7,5 +7,8 @@ export async function GET() {
   const response = NextResponse.json({ token: "" });
   const token = issueCsrfCookie(response);
   response.headers.set("content-type", "application/json");
-  return new Response(JSON.stringify({ token }), { status: 200, headers: response.headers });
+  return new Response(JSON.stringify({ token }), {
+    status: 200,
+    headers: response.headers,
+  });
 }

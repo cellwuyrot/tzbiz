@@ -1,5 +1,6 @@
 "use client";
 
+import { useLegalConsent } from "@/lib/use-legal-consent";
 import { useEffect, useMemo, useState } from "react";
 import type { ServiceView } from "@/lib/service-content";
 import { REQUEST_SERVICE_EVENT } from "@/lib/request-service";
@@ -12,6 +13,7 @@ export function LeadForm({
   services: ServiceView[];
   initialServiceSlug?: string;
 }) {
+  const legal = useLegalConsent();
   const firstSlug = useMemo(
     () =>
       initialServiceSlug &&
@@ -65,7 +67,7 @@ export function LeadForm({
       const response = await fetch("/api/leads", {
         method: "POST",
         headers: { "content-type": "application/json", "idempotency-key": key },
-        body: JSON.stringify(values),
+        body: JSON.stringify({ ...values, legalVersions: legal.versions }),
       });
       const data = await response.json().catch(() => null);
       if (!response.ok)
@@ -98,6 +100,11 @@ export function LeadForm({
       className="lead-form panel"
       aria-describedby="lead-form-note"
     >
+      {legal.error && (
+        <p role="alert" className="text-danger type-ui">
+          {legal.error}
+        </p>
+      )}
       <div className="grid gap-5 lg:grid-cols-2">
         <div>
           <label
@@ -243,7 +250,7 @@ export function LeadForm({
               Принимаю{" "}
               <a
                 className="text-accent underline"
-                href="/agreement"
+                href={legal.href("agreement")}
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -269,17 +276,30 @@ export function LeadForm({
               передачу SMTP-провайдеру для отправки писем, согласно{" "}
               <a
                 className="text-accent underline"
-                href="/privacy"
+                href={legal.href("privacy")}
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 политике обработки персональных данных (в новой вкладке)
+              </a>{" "}
+              и{" "}
+              <a
+                className="text-accent underline"
+                href={legal.href("consent")}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                отдельному согласию
               </a>
-              . Согласие можно отозвать через info@trioz.ru.
+              . Контакт оператора и порядок отзыва указаны в документах.
             </span>
           </label>
         </div>
-        <button className="cta-dark shrink-0" type="submit" disabled={loading}>
+        <button
+          className="cta-dark shrink-0"
+          type="submit"
+          disabled={loading || !legal.ready}
+        >
           {loading ? "Отправляем…" : "Отправить заявку"} <ArrowUpRight />
         </button>
       </div>

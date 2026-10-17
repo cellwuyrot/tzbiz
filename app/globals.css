@@ -684,3 +684,7 @@ input[type="checkbox"] { width: 20px; height: 20px; flex-shrink: 0; accent-color
 
 .admin-header .button-secondary { white-space: nowrap; flex-shrink: 0; overflow-wrap: normal; }
 .admin-header .brand-mark { white-space: nowrap; }
+
+.cookie-panel { position:fixed; z-index:100; right:1rem; bottom:1rem; width:min(42rem,calc(100vw - 2rem)); max-height:calc(100dvh - 2rem); overflow-y:auto; box-shadow:0 12px 50px #0008; }
+.cookie-toggle { position:fixed; z-index:80; right:1rem; bottom:1rem; font-size:12px; min-height:36px; padding:8px 14px; }
+@media print { .privacy-controls { display:none !important; } }

@@ -10,7 +10,11 @@ type PortfolioProject = {
   previewPath: string;
 };
 
-export function PortfolioSlider({ projects }: { projects: PortfolioProject[] }) {
+export function PortfolioSlider({
+  projects,
+}: {
+  projects: PortfolioProject[];
+}) {
   const [index, setIndex] = useState(0);
   const [slideStep, setSlideStep] = useState(0);
   const firstSlideRef = useRef<HTMLElement | null>(null);
@@ -23,7 +27,9 @@ export function PortfolioSlider({ projects }: { projects: PortfolioProject[] }) 
     if (!track) return;
 
     const gap = Number.parseFloat(window.getComputedStyle(track).gap || "0");
-    setSlideStep(slide.getBoundingClientRect().width + (Number.isFinite(gap) ? gap : 0));
+    setSlideStep(
+      slide.getBoundingClientRect().width + (Number.isFinite(gap) ? gap : 0),
+    );
   }, []);
 
   useEffect(() => {
@@ -37,9 +43,14 @@ export function PortfolioSlider({ projects }: { projects: PortfolioProject[] }) 
     return () => observer.disconnect();
   }, [measureSlideStep, projects.length]);
 
-  const move = useCallback((delta: number) => {
-    setIndex((current) => Math.min(Math.max(current + delta, 0), projects.length - 1));
-  }, [projects.length]);
+  const move = useCallback(
+    (delta: number) => {
+      setIndex((current) =>
+        Math.min(Math.max(current + delta, 0), projects.length - 1),
+      );
+    },
+    [projects.length],
+  );
 
   useEffect(() => {
     setIndex((current) => Math.min(current, Math.max(projects.length - 1, 0)));
@@ -48,7 +59,9 @@ export function PortfolioSlider({ projects }: { projects: PortfolioProject[] }) 
   if (!projects.length) {
     return (
       <div className="panel grid min-h-64 place-items-center p-8 text-center">
-        <p className="max-w-2xl type-body text-muted">Публичные проекты появятся здесь после публикации через админ-панель.</p>
+        <p className="max-w-2xl type-body text-muted">
+          Публичные проекты появятся здесь после публикации через админ-панель.
+        </p>
       </div>
     );
   }
@@ -59,8 +72,14 @@ export function PortfolioSlider({ projects }: { projects: PortfolioProject[] }) 
       aria-label="Слайдер реализованных проектов"
       tabIndex={0}
       onKeyDown={(event) => {
-        if (event.key === "ArrowLeft") { event.preventDefault(); move(-1); }
-        if (event.key === "ArrowRight") { event.preventDefault(); move(1); }
+        if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          move(-1);
+        }
+        if (event.key === "ArrowRight") {
+          event.preventDefault();
+          move(1);
+        }
       }}
     >
       <div className="overflow-hidden">
@@ -82,12 +101,17 @@ export function PortfolioSlider({ projects }: { projects: PortfolioProject[] }) 
                 aria-label={`Открыть проект «${project.title}»`}
               >
                 <div className="portfolio-media">
-                  <img src={project.previewPath} alt={`Проект «${project.title}»`} />
+                  <img
+                    src={project.previewPath}
+                    alt={`Проект «${project.title}»`}
+                  />
                 </div>
               </a>
               <div className="mt-5 flex items-start justify-between gap-6">
                 <h3 className="type-h3 text-text">{project.title}</h3>
-                <span className="type-ui text-subtle">{projectIndex + 1} / {projects.length}</span>
+                <span className="type-ui text-subtle">
+                  {projectIndex + 1} / {projects.length}
+                </span>
               </div>
             </article>
           ))}
@@ -95,12 +119,27 @@ export function PortfolioSlider({ projects }: { projects: PortfolioProject[] }) 
       </div>
 
       <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="type-body text-muted">Нажмите на изображение, чтобы открыть проект. Внутри слайдера можно использовать ← →.</p>
+        <p className="type-body text-muted">
+          Нажмите на изображение, чтобы открыть проект. Внутри слайдера можно
+          использовать ← →.
+        </p>
         <div className="flex gap-2">
-          <button type="button" className="icon-button" onClick={() => move(-1)} disabled={index === 0} aria-label="Предыдущий проект">
+          <button
+            type="button"
+            className="icon-button"
+            onClick={() => move(-1)}
+            disabled={index === 0}
+            aria-label="Предыдущий проект"
+          >
             <ChevronLeft />
           </button>
-          <button type="button" className="icon-button" onClick={() => move(1)} disabled={index === projects.length - 1} aria-label="Следующий проект">
+          <button
+            type="button"
+            className="icon-button"
+            onClick={() => move(1)}
+            disabled={index === projects.length - 1}
+            aria-label="Следующий проект"
+          >
             <ChevronRight />
           </button>
         </div>

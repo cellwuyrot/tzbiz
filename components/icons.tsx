@@ -1,31 +1,114 @@
 import { useId, type ReactNode } from "react";
 
 export function ArrowUpRight() {
-  return <svg aria-hidden="true" viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M5.25 14.75 14.5 5.5M7.25 5.5h7.25v7.25" /></svg>;
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+    >
+      <path d="M5.25 14.75 14.5 5.5M7.25 5.5h7.25v7.25" />
+    </svg>
+  );
 }
 
 export function MenuIcon() {
-  return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16" /></svg>;
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+    >
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  );
 }
 
 export function XIcon() {
-  return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>;
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+    >
+      <path d="M6 6l12 12M18 6 6 18" />
+    </svg>
+  );
 }
 
 export function ChevronRight() {
-  return <svg aria-hidden="true" viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="m7.25 4.5 5.5 5.5-5.5 5.5" /></svg>;
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+    >
+      <path d="m7.25 4.5 5.5 5.5-5.5 5.5" />
+    </svg>
+  );
 }
 
 export function ChevronLeft() {
-  return <svg aria-hidden="true" viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="m12.75 4.5-5.5 5.5 5.5 5.5" /></svg>;
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+    >
+      <path d="m12.75 4.5-5.5 5.5 5.5 5.5" />
+    </svg>
+  );
 }
 
 export function TrashIcon() {
-  return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 7h14M10 11v6M14 11v6M9 4h6l1 3H8l1-3ZM7 7l.8 13h8.4L17 7" /></svg>;
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M5 7h14M10 11v6M14 11v6M9 4h6l1 3H8l1-3ZM7 7l.8 13h8.4L17 7" />
+    </svg>
+  );
 }
 
 export function LockIcon() {
-  return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7.5a4 4 0 0 1 8 0V10"/><path d="M12 14v2.5"/></svg>;
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <rect x="5" y="10" width="14" height="10" rx="2" />
+      <path d="M8 10V7.5a4 4 0 0 1 8 0V10" />
+      <path d="M12 14v2.5" />
+    </svg>
+  );
 }
 
 export function LogoMark() {
@@ -42,9 +125,18 @@ export function LogoMark() {
     >
       <defs>
         <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop className="brand-logo__stop brand-logo__stop--start" offset="0%" />
-          <stop className="brand-logo__stop brand-logo__stop--mid" offset="52%" />
-          <stop className="brand-logo__stop brand-logo__stop--end" offset="100%" />
+          <stop
+            className="brand-logo__stop brand-logo__stop--start"
+            offset="0%"
+          />
+          <stop
+            className="brand-logo__stop brand-logo__stop--mid"
+            offset="52%"
+          />
+          <stop
+            className="brand-logo__stop brand-logo__stop--end"
+            offset="100%"
+          />
         </linearGradient>
       </defs>
       <g transform="translate(0 1024) scale(0.1 -0.1)">
@@ -57,20 +149,76 @@ export function LogoMark() {
 }
 
 const paths = [
-  <><path d="M6 12h12"/><path d="M6 7h5"/><path d="M6 17h8"/><rect x="13" y="5" width="5" height="5" rx="1"/></>,
-  <><circle cx="7" cy="7" r="2"/><circle cx="17" cy="12" r="2"/><circle cx="9" cy="18" r="2"/><path d="m8.7 8.2 6.6 2.6M15.8 13.7l-5 2.6"/></>,
-  <><rect x="5" y="6" width="14" height="12" rx="2"/><path d="M8 10h8M8 14h5"/><circle cx="16" cy="14" r="1" fill="currentColor" stroke="none"/></>,
-  <><path d="M5 17 9 13l3 3 7-8"/><path d="M15 8h4v4"/><circle cx="6" cy="18" r="1"/></>,
-  <><path d="M6 6h12v12H6z"/><path d="M9 9h6v6H9z"/><path d="M3 9h3M18 9h3M3 15h3M18 15h3"/></>,
-  <><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M8 9h8M8 12h5M8 15h8"/></>,
-  <><path d="M5 18V8l7-3 7 3v10"/><path d="M9 15h6M12 9v3"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></>,
-  <><path d="M6 6h12v12H6z"/><path d="M9 10h6M9 14h4"/><path d="M6 8H4M20 8h-2"/></>,
-  <><rect x="5" y="6" width="14" height="12" rx="2"/><path d="M9 18v2M15 18v2M8 10h8M8 14h5"/></>,
-  <><path d="M5 17V9l7-4 7 4v8"/><path d="M8 17v-5h8v5"/><path d="M10 17v-3h4v3"/></>,
-  <><path d="M6 7h12v10H6z"/><path d="m8.5 9.5 3 2.5-3 2.5M13 14.5h3"/></>,
+  <>
+    <path d="M6 12h12" />
+    <path d="M6 7h5" />
+    <path d="M6 17h8" />
+    <rect x="13" y="5" width="5" height="5" rx="1" />
+  </>,
+  <>
+    <circle cx="7" cy="7" r="2" />
+    <circle cx="17" cy="12" r="2" />
+    <circle cx="9" cy="18" r="2" />
+    <path d="m8.7 8.2 6.6 2.6M15.8 13.7l-5 2.6" />
+  </>,
+  <>
+    <rect x="5" y="6" width="14" height="12" rx="2" />
+    <path d="M8 10h8M8 14h5" />
+    <circle cx="16" cy="14" r="1" fill="currentColor" stroke="none" />
+  </>,
+  <>
+    <path d="M5 17 9 13l3 3 7-8" />
+    <path d="M15 8h4v4" />
+    <circle cx="6" cy="18" r="1" />
+  </>,
+  <>
+    <path d="M6 6h12v12H6z" />
+    <path d="M9 9h6v6H9z" />
+    <path d="M3 9h3M18 9h3M3 15h3M18 15h3" />
+  </>,
+  <>
+    <rect x="5" y="5" width="14" height="14" rx="2" />
+    <path d="M8 9h8M8 12h5M8 15h8" />
+  </>,
+  <>
+    <path d="M5 18V8l7-3 7 3v10" />
+    <path d="M9 15h6M12 9v3" />
+    <circle cx="12" cy="17" r="1" fill="currentColor" stroke="none" />
+  </>,
+  <>
+    <path d="M6 6h12v12H6z" />
+    <path d="M9 10h6M9 14h4" />
+    <path d="M6 8H4M20 8h-2" />
+  </>,
+  <>
+    <rect x="5" y="6" width="14" height="12" rx="2" />
+    <path d="M9 18v2M15 18v2M8 10h8M8 14h5" />
+  </>,
+  <>
+    <path d="M5 17V9l7-4 7 4v8" />
+    <path d="M8 17v-5h8v5" />
+    <path d="M10 17v-3h4v3" />
+  </>,
+  <>
+    <path d="M6 7h12v10H6z" />
+    <path d="m8.5 9.5 3 2.5-3 2.5M13 14.5h3" />
+  </>,
 ];
 
 export function ServiceIcon({ index }: { index: number }) {
   const body: ReactNode = paths[index] ?? paths[0];
-  return <svg aria-hidden="true" viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">{body}</svg>;
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-7 w-7"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {body}
+    </svg>
+  );
 }

@@ -1,0 +1,23 @@
+{
+  "version": "1.2.0",
+  "unit": {
+    "files": 27,
+    "passed": 256
+  },
+  "integration": {
+    "core": 17,
+    "invoices": 16,
+    "adminCrud": 5,
+    "catalogPrivacy": 20,
+    "total": 58
+  },
+  "browserStates": 43,
+  "build": true,
+  "lint": true,
+  "typecheck": true,
+  "postgresSchemaValidated": true,
+  "postgresMigrationExecuted": false,
+  "productionDeployPerformed": false,
+  "automaticExternalEntitlements": false,
+  "automaticPaymentApi": false
+}

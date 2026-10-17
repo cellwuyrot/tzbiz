@@ -1,4 +1,5 @@
 "use client";
+import { useLegalConsent } from "@/lib/use-legal-consent";
 import { useEffect, useState } from "react";
 export function OrderRequest({
   planId,
@@ -7,6 +8,8 @@ export function OrderRequest({
   planId: string;
   revision: number;
 }) {
+  const legal = useLegalConsent();
+  const [offer, setOffer] = useState(false);
   const [message, setMessage] = useState(""),
     [accepted, setAccepted] = useState(false),
     [privacy, setPrivacy] = useState(false),
@@ -51,6 +54,8 @@ export function OrderRequest({
         method: "POST",
         headers: { "content-type": "application/json", "x-csrf-token": token },
         body: JSON.stringify({
+          legalVersions: legal.versions,
+          offerAccepted: offer,
           planId,
           revision,
           requestKey,
@@ -87,7 +92,7 @@ export function OrderRequest({
     );
   return (
     <form onSubmit={submit} className="panel space-y-5 p-6">
-      <h2 className="type-h3">Обсудить выбранный тариф</h2>
+      <h2 className="type-h3">Заявка на товар или услугу</h2>
       <p className="type-body text-muted">
         Это заявка на согласование, не платёж и не согласие на автоматические
         списания.
@@ -118,7 +123,7 @@ export function OrderRequest({
           Принимаю{" "}
           <a
             className="text-accent underline"
-            href="/agreement"
+            href={legal.href("agreement")}
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -138,22 +143,61 @@ export function OrderRequest({
           Даю согласие на обработку данных для рассмотрения заявки согласно{" "}
           <a
             className="text-accent underline"
-            href="/privacy"
+            href={legal.href("privacy")}
             target="_blank"
             rel="noopener noreferrer"
           >
             политике
+          </a>{" "}
+          и{" "}
+          <a
+            className="text-accent underline"
+            href={legal.href("consent")}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            отдельному согласию
           </a>
           .
         </span>
       </label>
+      <label className="flex gap-3 type-ui">
+        <input
+          type="checkbox"
+          required
+          checked={offer}
+          onChange={(e) => setOffer(e.target.checked)}
+        />
+        <span>
+          Ознакомлен с{" "}
+          <a
+            className="text-accent underline"
+            href={legal.href("offer")}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            офертой
+          </a>{" "}
+          и условиями выбранной карточки. Заявка не является согласием на
+          автосписания.
+        </span>
+      </label>
+      {legal.error && (
+        <p role="alert" className="text-danger type-ui">
+          {legal.error}
+        </p>
+      )}
       {error && (
         <p role="alert" className="text-danger type-body">
           {error}
         </p>
       )}
-      <button className="button-primary" disabled={busy} type="submit">
-        {busy ? "Сохраняем…" : "Отправить заявку на тариф"}
+      <button
+        className="button-primary"
+        disabled={busy || !legal.ready}
+        type="submit"
+      >
+        {busy ? "Сохраняем…" : "Отправить заявку"}
       </button>
     </form>
   );

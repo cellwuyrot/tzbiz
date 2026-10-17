@@ -25,7 +25,12 @@ export function LogoutButton() {
   }
 
   return (
-    <button className="button-secondary" type="button" disabled={!csrf || loading} onClick={logout}>
+    <button
+      className="button-secondary"
+      type="button"
+      disabled={!csrf || loading}
+      onClick={logout}
+    >
       {loading ? "Выход…" : "Выйти"}
     </button>
   );

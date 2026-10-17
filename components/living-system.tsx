@@ -1,14 +1,42 @@
 export function LivingSystem() {
   return (
-    <div className="relative aspect-[1.04] w-full overflow-hidden" role="img" aria-label="Схема цифровой системы TRIOZ">
-      <svg className="h-full w-full" viewBox="0 0 720 640" fill="none" role="img" aria-hidden="true">
+    <div
+      className="relative aspect-[1.04] w-full overflow-hidden"
+      role="img"
+      aria-label="Схема цифровой системы TRIOZ"
+    >
+      <svg
+        className="h-full w-full"
+        viewBox="0 0 720 640"
+        fill="none"
+        role="img"
+        aria-hidden="true"
+      >
         <defs>
-          <linearGradient id="lineInk" x1="80" y1="90" x2="620" y2="560" gradientUnits="userSpaceOnUse">
+          <linearGradient
+            id="lineInk"
+            x1="80"
+            y1="90"
+            x2="620"
+            y2="560"
+            gradientUnits="userSpaceOnUse"
+          >
             <stop stopColor="var(--color-text)" stopOpacity="0.05" />
-            <stop offset="0.45" stopColor="var(--color-text)" stopOpacity="0.28" />
+            <stop
+              offset="0.45"
+              stopColor="var(--color-text)"
+              stopOpacity="0.28"
+            />
             <stop offset="1" stopColor="var(--color-text)" stopOpacity="0.04" />
           </linearGradient>
-          <radialGradient id="aura" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(475 188) rotate(132) scale(300)">
+          <radialGradient
+            id="aura"
+            cx="0"
+            cy="0"
+            r="1"
+            gradientUnits="userSpaceOnUse"
+            gradientTransform="translate(475 188) rotate(132) scale(300)"
+          >
             <stop stopColor="var(--color-accent)" stopOpacity="0.25" />
             <stop offset="1" stopColor="var(--color-accent)" stopOpacity="0" />
           </radialGradient>
@@ -30,19 +58,43 @@ export function LivingSystem() {
 
         <g className="system-node system-node--one">
           <circle cx="214" cy="184" r="7" fill="var(--color-text)" />
-          <circle cx="214" cy="184" r="18" stroke="var(--color-accent)" strokeOpacity="0.45" />
+          <circle
+            cx="214"
+            cy="184"
+            r="18"
+            stroke="var(--color-accent)"
+            strokeOpacity="0.45"
+          />
         </g>
         <g className="system-node system-node--two">
           <circle cx="442" cy="122" r="6" fill="var(--color-accent)" />
-          <circle cx="442" cy="122" r="16" stroke="var(--color-accent)" strokeOpacity="0.35" />
+          <circle
+            cx="442"
+            cy="122"
+            r="16"
+            stroke="var(--color-accent)"
+            strokeOpacity="0.35"
+          />
         </g>
         <g className="system-node system-node--three">
           <circle cx="504" cy="186" r="5" fill="var(--color-text)" />
-          <circle cx="504" cy="186" r="15" stroke="var(--color-accent)" strokeOpacity="0.3" />
+          <circle
+            cx="504"
+            cy="186"
+            r="15"
+            stroke="var(--color-accent)"
+            strokeOpacity="0.3"
+          />
         </g>
         <g className="system-node system-node--four">
           <circle cx="372" cy="354" r="8" fill="var(--color-accent)" />
-          <circle cx="372" cy="354" r="20" stroke="var(--color-accent)" strokeOpacity="0.38" />
+          <circle
+            cx="372"
+            cy="354"
+            r="20"
+            stroke="var(--color-accent)"
+            strokeOpacity="0.38"
+          />
         </g>
 
         <g className="data-particle data-particle--a">
@@ -56,22 +108,52 @@ export function LivingSystem() {
         </g>
 
         <g transform="translate(86 102)">
-          <path d="M0 0h106l28 26v44H0z" fill="var(--color-panel)" stroke="var(--color-text)" strokeOpacity="0.12" />
-          <path d="M20 25h52M20 38h74M20 51h48" stroke="var(--color-text)" strokeOpacity="0.18" strokeLinecap="round" />
+          <path
+            d="M0 0h106l28 26v44H0z"
+            fill="var(--color-panel)"
+            stroke="var(--color-text)"
+            strokeOpacity="0.12"
+          />
+          <path
+            d="M20 25h52M20 38h74M20 51h48"
+            stroke="var(--color-text)"
+            strokeOpacity="0.18"
+            strokeLinecap="round"
+          />
           <circle cx="94" cy="24" r="5" fill="var(--color-accent)" />
         </g>
 
         <g transform="translate(448 384)">
-          <path d="M0 0h122l34 30v74H0z" fill="var(--color-panel)" stroke="var(--color-text)" strokeOpacity="0.12" />
-          <path d="M22 30l24-16 22 20 28-32 34 28" stroke="var(--color-text)" strokeOpacity="0.24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M22 84h84" stroke="var(--color-accent)" strokeWidth="4" strokeLinecap="round" opacity="0.8" />
+          <path
+            d="M0 0h122l34 30v74H0z"
+            fill="var(--color-panel)"
+            stroke="var(--color-text)"
+            strokeOpacity="0.12"
+          />
+          <path
+            d="M22 30l24-16 22 20 28-32 34 28"
+            stroke="var(--color-text)"
+            strokeOpacity="0.24"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M22 84h84"
+            stroke="var(--color-accent)"
+            strokeWidth="4"
+            strokeLinecap="round"
+            opacity="0.8"
+          />
         </g>
       </svg>
 
       <div className="absolute bottom-2 left-0 right-0 flex items-end justify-between gap-4 sm:bottom-6 sm:left-6 sm:right-6">
         <div>
           <p className="eyebrow">TRIOZ / SYSTEM VIEW</p>
-          <p className="mt-2 max-w-sm type-h3">Связываем процессы, людей и технологии в работающую систему.</p>
+          <p className="mt-2 max-w-sm type-h3">
+            Связываем процессы, людей и технологии в работающую систему.
+          </p>
         </div>
         <span className="hidden type-ui text-subtle sm:block">LIVE / FLOW</span>
       </div>

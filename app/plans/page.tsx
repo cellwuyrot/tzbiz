@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import {
   publicPlan,
+  PRODUCT_TYPE_LABELS,
   PLAN_KIND_LABELS,
   PERIOD_LABELS,
   SETTLEMENT_LABELS,
@@ -11,9 +12,9 @@ import {
 import { SiteHeader } from "@/components/site-header";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Услуги и подписки",
+  title: "Товары, услуги и подписки",
   description:
-    "Выберите формат работы: услуга без предоплаты, с предоплатой или предложение подписки Premium / «Надёжное соединение» TZ ID.",
+    "Выберите формат работы: услуга без предоплаты, с предоплатой или предложение подписки Premium / «Надёжное соединение» для проектов TrioZ.",
   alternates: { canonical: "/plans" },
 };
 export default async function Plans({
@@ -26,7 +27,7 @@ export default async function Plans({
       isPublished: true,
       isArchived: false,
       OR: [
-        { kind: { in: ["PREMIUM", "VPN"] } },
+        { kind: { in: ["PREMIUM", "VPN", "PRODUCT"] } },
         { kind: "SERVICE", service: { isPublished: true } },
       ],
     },
@@ -50,9 +51,10 @@ export default async function Plans({
         </div>
         <div className="panel flex flex-wrap items-center justify-between gap-5 p-6">
           <p className="max-w-3xl type-body text-muted">
-            Онлайн-оплата пока не подключена. Заявка на тариф не списывает
-            деньги и не выдаёт подписку. Условия Premium / «Надёжное соединение»
-            должны быть подтверждены биллингом TZ ID.
+            Выберите предложение и проект, в котором оно действует.
+            Администратор согласует условия и выставит счёт или платёжную
+            ссылку. TZ ID — общий вход; оплата и выдача доступа в другом проекте
+            подтверждаются отдельно.
           </p>
           <Link href="/payment" className="button-secondary">
             Как оформить и оплатить
@@ -82,6 +84,19 @@ export default async function Plans({
                   {PLAN_KIND_LABELS[p.kind as keyof typeof PLAN_KIND_LABELS]}
                 </span>
               </div>
+              {p.cardImageUrl && (
+                <img
+                  src={p.cardImageUrl}
+                  alt={p.title}
+                  className="aspect-video w-full rounded-xl object-cover"
+                />
+              )}
+              <p className="type-ui text-accent">
+                {PRODUCT_TYPE_LABELS[
+                  p.productType as keyof typeof PRODUCT_TYPE_LABELS
+                ] || "Услуга"}{" "}
+                · Проект: {p.projectKey}
+              </p>
               <h2 className="type-h3 break-words">
                 {renameDisplayText(p.title)}
               </h2>

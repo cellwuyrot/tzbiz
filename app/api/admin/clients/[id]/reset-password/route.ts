@@ -8,8 +8,12 @@ import { verifyCsrf, jsonError } from "@/lib/security";
 export const runtime = "nodejs";
 
 function generatedPassword() {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
-  return Array.from({ length: 18 }, () => alphabet[crypto.randomInt(alphabet.length)]).join("");
+  const alphabet =
+    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+  return Array.from(
+    { length: 18 },
+    () => alphabet[crypto.randomInt(alphabet.length)],
+  ).join("");
 }
 
 type Params = { params: Promise<{ id: string }> };

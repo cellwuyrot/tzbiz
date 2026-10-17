@@ -3,7 +3,7 @@ export const ORDER_STATUS = {
   IN_REVIEW: "На согласовании",
   AWAITING_INVOICE: "Ожидает счёта",
   AWAITING_PAYMENT: "Ожидает оплаты",
-  INTEGRATION_PENDING: "Ожидает подключения TZ ID",
+  INTEGRATION_PENDING: "Ожидает подключения выдачи доступа",
   IN_PROGRESS: "В работе",
   DONE: "Выполнено",
   CANCELLED: "Отменено",
@@ -17,7 +17,7 @@ export function canTransition(
   if (from === to) return true;
   if (from === "DONE" || from === "CANCELLED") return false;
   if (to === "CANCELLED") return true;
-  if (mode === "SUBSCRIPTION") return false; // Real subscription state belongs to TZ ID, not an admin checkbox.
+  if (mode === "SUBSCRIPTION") return false; // Subscription state belongs to the receiving project/provider, not an admin checkbox.
   if (to === "IN_REVIEW")
     return ["REQUESTED", "AWAITING_INVOICE"].includes(from);
   if (mode === "PREPAYMENT") {

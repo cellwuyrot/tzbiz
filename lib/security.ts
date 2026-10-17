@@ -35,7 +35,10 @@ export function verifyCsrf(request: NextRequest) {
 }
 
 export function loginRateLimitKey(request: NextRequest, email: string) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
   return `${ip}:${email.toLowerCase()}`;
 }
 
@@ -44,7 +47,10 @@ export function checkLoginRateLimit(key: string) {
   const entry = loginAttempts.get(key);
   if (!entry || entry.resetAt <= now) return { allowed: true, retryAfter: 0 };
   if (entry.count >= MAX_LOGIN_ATTEMPTS) {
-    return { allowed: false, retryAfter: Math.ceil((entry.resetAt - now) / 1000) };
+    return {
+      allowed: false,
+      retryAfter: Math.ceil((entry.resetAt - now) / 1000),
+    };
   }
   return { allowed: true, retryAfter: 0 };
 }
@@ -63,6 +69,10 @@ export function clearLoginFailures(key: string) {
   loginAttempts.delete(key);
 }
 
-export function jsonError(message: string, status = 400, headers?: HeadersInit) {
+export function jsonError(
+  message: string,
+  status = 400,
+  headers?: HeadersInit,
+) {
   return NextResponse.json({ error: message }, { status, headers });
 }

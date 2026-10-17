@@ -1,0 +1,41 @@
+{
+  "ok": true,
+  "results": [
+    {
+      "status": 401,
+      "message": "Сессия завершилась. Войдите в аккаунт снова. Код обращения: QA-SAFE-ID"
+    },
+    {
+      "status": 403,
+      "message": "Нет прав администратора Business. Проверьте назначение роли в TZ ID. Код обращения: QA-SAFE-ID"
+    },
+    {
+      "status": 503,
+      "message": "База данных недоступна. Код обращения: QA-SAFE-ID"
+    },
+    {
+      "state": "integration-recovery",
+      "ok": true
+    },
+    {
+      "method": "BANK_TRANSFER",
+      "noOverflow": true
+    },
+    {
+      "method": "ACQUIRING",
+      "noOverflow": true
+    },
+    {
+      "method": "RECURRING",
+      "noOverflow": true
+    },
+    {
+      "printWidth": 1440,
+      "cookieControlsHidden": true
+    },
+    {
+      "printWidth": 390,
+      "cookieControlsHidden": true
+    }
+  ]
+}

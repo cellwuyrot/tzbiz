@@ -4,7 +4,8 @@ import { ArrowUpRight, LogoMark } from "./icons";
 export function SiteHeader({ basePath = "" }: { basePath?: string }) {
   const links = [
     [`${basePath}#services`, "Услуги"],
-    ["/plans", "Тарифы"],
+    ["/plans", "Каталог"],
+    ["/documents", "Документы"],
     ["/payment", "Как оплатить"],
     [`${basePath}#contact`, "Контакты"],
     ["/account", "Войти / Кабинет"],

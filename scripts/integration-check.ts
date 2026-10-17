@@ -17,11 +17,15 @@ if (
   throw Error(
     "Integration tests require loopback HTTP and a disposable revision/integration SQLite database.",
   );
-if (process.env.SMTP_HOST) throw Error("Refusing synthetic tests with SMTP configured.");
-const artifacts = process.env.INTEGRATION_ARTIFACT_DIR || path.join(process.cwd(), "data", "integration-artifacts");
+if (process.env.SMTP_HOST)
+  throw Error("Refusing synthetic tests with SMTP configured.");
+const artifacts =
+  process.env.INTEGRATION_ARTIFACT_DIR ||
+  path.join(process.cwd(), "data", "integration-artifacts");
 const db = new PrismaClient(),
   tag = crypto.randomBytes(5).toString("hex");
 const results: string[] = [];
+let legalVersions: Record<string, string> = {};
 function pass(s: string) {
   results.push(s);
   console.log(`PASS ${s}`);
@@ -70,6 +74,8 @@ async function api(
   body?: unknown,
   csrf = true,
 ) {
+  if (body && path === "/api/orders" && method === "POST")
+    body = { legalVersions, offerAccepted: true, ...(body as object) };
   return fetch(base + path, {
     method,
     headers: {
@@ -112,6 +118,21 @@ async function main() {
       200,
     );
     pass("owner-controlled readiness settings");
+    const legalDrafts = await (await api(admin, "/api/admin/documents")).json();
+    for (const d of legalDrafts.documents) {
+      const saved = await api(admin, "/api/admin/documents", "PUT", {
+        ...d,
+        body:
+          "# Синтетический документ для изолированного тестирования\n" +
+          "Только тестовые условия, не использовать в бизнесе. ".repeat(5),
+        publish: true,
+        ownerConfirmed: true,
+      });
+      assert.equal(saved.status, 200, await saved.clone().text());
+    }
+    legalVersions = (await (await fetch(base + "/api/documents")).json())
+      .versions;
+    pass("versioned synthetic legal publications");
     const svc = await db.service.create({
       data: {
         slug: `qa-${tag}`,
@@ -312,7 +333,7 @@ async function main() {
           "idempotency-key": key,
           origin: base,
         },
-        body: JSON.stringify(leadBody),
+        body: JSON.stringify({ ...leadBody, legalVersions }),
       });
     const first = await send();
     assert.equal(first.status, 201, await first.clone().text());
@@ -398,17 +419,47 @@ async function main() {
     );
     pass("old service addresses cannot be assigned to another service");
     const rateNow = Date.now();
-    const rates = await Promise.all([consumeRate("qa-shared",tag,1,60_000,rateNow),consumeRate("qa-shared",tag,1,60_000,rateNow)]);
-    assert.equal(rates.filter(r=>r.allowed).length,1);
+    const rates = await Promise.all([
+      consumeRate("qa-shared", tag, 1, 60_000, rateNow),
+      consumeRate("qa-shared", tag, 1, 60_000, rateNow),
+    ]);
+    assert.equal(rates.filter((r) => r.allowed).length, 1);
     pass("atomic shared-storage rate limiting");
-    await db.session.create({ data: { id: `expired-${tag}`, userId: client.user.id, expiresAt: new Date(0) } });
-    await db.rateBucket.create({ data: { key: `expired-${tag}`, hits: 1, expiresAt: new Date(0) } });
-    await db.tzLoginAttempt.create({ data: { stateHash: `expired-${tag}`, expiresAt: new Date(0) } });
-    execFileSync(process.execPath, ["node_modules/tsx/dist/cli.mjs", "scripts/jobs.ts"], { cwd: process.cwd(), env: process.env, stdio: "pipe" });
-    assert.equal(await db.session.findUnique({ where: { id: `expired-${tag}` } }), null);
-    assert.equal(await db.rateBucket.findUnique({ where: { key: `expired-${tag}` } }), null);
-    assert.equal(await db.tzLoginAttempt.findUnique({ where: { stateHash: `expired-${tag}` } }), null);
-    pass("scheduled maintenance removes expired sessions, rates and login attempts");
+    await db.session.create({
+      data: {
+        id: `expired-${tag}`,
+        userId: client.user.id,
+        expiresAt: new Date(0),
+      },
+    });
+    await db.rateBucket.create({
+      data: { key: `expired-${tag}`, hits: 1, expiresAt: new Date(0) },
+    });
+    await db.tzLoginAttempt.create({
+      data: { stateHash: `expired-${tag}`, expiresAt: new Date(0) },
+    });
+    execFileSync(
+      process.execPath,
+      ["node_modules/tsx/dist/cli.mjs", "scripts/jobs.ts"],
+      { cwd: process.cwd(), env: process.env, stdio: "pipe" },
+    );
+    assert.equal(
+      await db.session.findUnique({ where: { id: `expired-${tag}` } }),
+      null,
+    );
+    assert.equal(
+      await db.rateBucket.findUnique({ where: { key: `expired-${tag}` } }),
+      null,
+    );
+    assert.equal(
+      await db.tzLoginAttempt.findUnique({
+        where: { stateHash: `expired-${tag}` },
+      }),
+      null,
+    );
+    pass(
+      "scheduled maintenance removes expired sessions, rates and login attempts",
+    );
     await fs.writeFile(
       path.join(artifacts, "qa-fixture.json"),
       JSON.stringify(

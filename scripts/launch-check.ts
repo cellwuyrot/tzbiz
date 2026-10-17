@@ -31,6 +31,9 @@ async function main() {
     });
     add("COMMERCE_APPROVED", Boolean(settings?.approved));
     add("BANK_DETAILS", bankReady(settings));
+    const { legalState } = await import("../lib/legal-store");
+    add("LEGAL_DOCUMENTS_PUBLISHED", (await legalState()).ready);
+    await prisma.pageViewDaily.count();
     await prisma.invoice.count();
     await prisma.integrationCheck.count();
     add("DATABASE_SCHEMA", true);
