@@ -1,7 +1,7 @@
 "use client";
 import { renameDisplayText } from "@/lib/display-labels";
-import { readAdminResponse } from "@/lib/admin-fetch";
-import { useCallback, useEffect, useState } from "react";
+import { adminFetch, readAdminResponse } from "@/lib/admin-fetch";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   PLAN_KIND_LABELS,
   PERIOD_LABELS,
@@ -9,7 +9,13 @@ import {
   minorToRubles,
 } from "@/lib/billing/plan";
 type Form = {
-  kind: "SERVICE" | "PREMIUM" | "VPN";
+  kind: "SERVICE" | "PREMIUM" | "VPN" | "PRODUCT";
+  productType: "SERVICE" | "GOOD" | "DIGITAL" | "SUBSCRIPTION";
+  projectKey: string;
+  projectUrl: string;
+  cardImageUrl: string;
+  features: string;
+  fulfillmentTerms: string;
   serviceId: string;
   title: string;
   description: string;
@@ -37,6 +43,12 @@ type Saved = Omit<
 };
 const blank: Form = {
   kind: "SERVICE",
+  productType: "SERVICE",
+  projectKey: "business",
+  projectUrl: "https://business.trioz.ru",
+  cardImageUrl: "",
+  features: "",
+  fulfillmentTerms: "",
   serviceId: "",
   title: "",
   description: "",
@@ -52,6 +64,7 @@ const blank: Form = {
   isArchived: false,
 };
 export function AdminBillingPlans() {
+  const imageInput = useRef<HTMLInputElement>(null);
   const [plans, setPlans] = useState<Saved[]>([]),
     [services, setServices] = useState<
       { id: string; title: string; isPublished: boolean }[]
@@ -61,7 +74,8 @@ export function AdminBillingPlans() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
-    [filter, setFilter] = useState("ALL");
+    [filter, setFilter] = useState("ALL"),
+    [imageFile, setImageFile] = useState<File | null>(null);
   const refresh = useCallback(async () => {
     const r = await fetch("/api/admin/billing/plans", { cache: "no-store" });
     const d = await readAdminResponse<{
@@ -86,13 +100,17 @@ export function AdminBillingPlans() {
   function select(p: Saved) {
     setForm({
       ...p,
-      settlementMode: p.kind === "SERVICE" ? p.settlementMode : "SUBSCRIPTION",
+      settlementMode: ["SERVICE", "PRODUCT"].includes(p.kind)
+        ? p.settlementMode
+        : "SUBSCRIPTION",
       amountRub: minorToRubles(p.amountMinor),
       serviceId: p.serviceId || "",
       periodUnit: p.periodUnit || "MONTH",
       periodCount: p.periodCount || 1,
     });
     setEdit({ id: p.id, revision: p.revision });
+    setImageFile(null);
+    if (imageInput.current) imageInput.current.value = "";
     setError("");
     setNotice("");
     document
@@ -132,8 +150,29 @@ export function AdminBillingPlans() {
           }),
         },
       );
-      const d = await r.json();
-      if (!r.ok) throw Error(d.error || "Не удалось сохранить.");
+      const d = await readAdminResponse<{
+        plan: { id: string; revision: number };
+      }>(r);
+      if (imageFile) {
+        const formData = new FormData();
+        formData.set("image", imageFile);
+        formData.set("revision", String(d.plan.revision));
+        try {
+          await adminFetch(`/api/admin/billing/plans/${d.plan.id}/image`, {
+            method: "POST",
+            headers: { "x-csrf-token": token },
+            body: formData,
+          });
+        } catch (e) {
+          await refresh();
+          setEdit({ id: d.plan.id, revision: d.plan.revision });
+          throw Error(
+            `Карточка сохранена, изображение не добавлено. ${e instanceof Error ? e.message : "Повторите загрузку."}`,
+          );
+        }
+      }
+      setImageFile(null);
+      if (imageInput.current) imageInput.current.value = "";
       setNotice(
         "Предложение сохранено. История условий и уже созданные заказы не изменены.",
       );
@@ -152,7 +191,7 @@ export function AdminBillingPlans() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 id="billing-title" className="type-h2 mt-2">
-            Тарифы и подписки
+            Товары, услуги и подписки
           </h2>
         </div>
         <a
@@ -210,8 +249,18 @@ export function AdminBillingPlans() {
                   kind,
                   serviceId: "",
                   externalProductId: "",
-                  settlementMode:
-                    kind === "SERVICE" ? "NO_PREPAYMENT" : "SUBSCRIPTION",
+                  projectKey: ["PREMIUM", "VPN"].includes(kind)
+                    ? "trioz"
+                    : "business",
+                  projectUrl: ["PREMIUM", "VPN"].includes(kind)
+                    ? "https://trioz.ru"
+                    : "https://business.trioz.ru",
+                  productType: ["PREMIUM", "VPN"].includes(kind)
+                    ? "SUBSCRIPTION"
+                    : "SERVICE",
+                  settlementMode: ["SERVICE", "PRODUCT"].includes(kind)
+                    ? "NO_PREPAYMENT"
+                    : "SUBSCRIPTION",
                 }));
               }}
             >
@@ -236,7 +285,9 @@ export function AdminBillingPlans() {
             >
               {Object.entries(SETTLEMENT_LABELS)
                 .filter(
-                  ([k]) => form.kind === "SERVICE" || k === "SUBSCRIPTION",
+                  ([k]) =>
+                    ["SERVICE", "PRODUCT"].includes(form.kind) ||
+                    k === "SUBSCRIPTION",
                 )
                 .map(([k, v]) => (
                   <option key={k} value={k}>
@@ -265,7 +316,7 @@ export function AdminBillingPlans() {
             </label>
           ) : (
             <label className="type-ui">
-              Технический ID продукта TZ ID
+              ID продукта в принимающем проекте
               <input
                 className="field mt-2"
                 maxLength={160}
@@ -336,6 +387,68 @@ export function AdminBillingPlans() {
             </div>
           )}
         </div>
+        <div className="grid gap-5 md:grid-cols-2">
+          <label className="type-ui">
+            Тип карточки
+            <select
+              className="field mt-2"
+              value={form.productType}
+              onChange={(e) =>
+                field("productType", e.target.value as Form["productType"])
+              }
+            >
+              {Object.entries({
+                SERVICE: "Услуга",
+                GOOD: "Товар",
+                DIGITAL: "Цифровой продукт",
+                SUBSCRIPTION: "Подписка",
+              }).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </label>
+          {(
+            [
+              ["projectKey", "Код проекта"],
+              ["projectUrl", "Адрес проекта"],
+              ["cardImageUrl", "Изображение: путь /api/uploads/"],
+              ["features", "Состав / характеристики"],
+              ["fulfillmentTerms", "Выдача, сроки и условия доставки"],
+            ] as const
+          ).map(([k, label]) => (
+            <label className="type-ui" key={k}>
+              {label}
+              {["features", "fulfillmentTerms"].includes(k) ? (
+                <textarea
+                  className="field mt-2 min-h-24"
+                  maxLength={5000}
+                  value={form[k]}
+                  onChange={(e) => field(k, e.target.value)}
+                />
+              ) : (
+                <input
+                  className="field mt-2"
+                  required={k !== "cardImageUrl"}
+                  maxLength={500}
+                  value={form[k]}
+                  onChange={(e) => field(k, e.target.value)}
+                />
+              )}
+            </label>
+          ))}
+        </div>
+        <label className="block type-ui">
+          Изображение карточки · PNG, JPEG, WebP до 5 МБ
+          <input
+            className="field mt-2"
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            ref={imageInput}
+            onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+          />
+        </label>
         <label className="block type-ui">
           Описание и состав услуги
           <textarea

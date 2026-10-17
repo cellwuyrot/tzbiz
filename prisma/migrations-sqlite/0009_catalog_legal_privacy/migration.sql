@@ -1,0 +1,13 @@
+ALTER TABLE "BillingPlan" ADD COLUMN "productType" TEXT NOT NULL DEFAULT 'SERVICE';
+ALTER TABLE "BillingPlan" ADD COLUMN "projectKey" TEXT NOT NULL DEFAULT 'business';
+ALTER TABLE "BillingPlan" ADD COLUMN "projectUrl" TEXT NOT NULL DEFAULT 'https://business.trioz.ru';
+ALTER TABLE "BillingPlan" ADD COLUMN "cardImageUrl" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "BillingPlan" ADD COLUMN "features" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "BillingPlan" ADD COLUMN "fulfillmentTerms" TEXT NOT NULL DEFAULT '';
+CREATE TABLE "LegalPage" ("slug" TEXT NOT NULL PRIMARY KEY, "title" TEXT NOT NULL, "body" TEXT NOT NULL, "revision" INTEGER NOT NULL DEFAULT 1, "publishedVersion" TEXT, "updatedAt" DATETIME NOT NULL);
+CREATE TABLE "LegalPublication" ("id" TEXT NOT NULL PRIMARY KEY, "slug" TEXT NOT NULL, "version" TEXT NOT NULL, "title" TEXT NOT NULL, "body" TEXT NOT NULL, "digest" TEXT NOT NULL, "actorId" TEXT NOT NULL, "publishedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE UNIQUE INDEX "LegalPublication_version_key" ON "LegalPublication"("version");
+CREATE INDEX "LegalPublication_slug_publishedAt_idx" ON "LegalPublication"("slug", "publishedAt");
+CREATE TABLE "PageViewDaily" ("day" TEXT NOT NULL, "path" TEXT NOT NULL, "views" INTEGER NOT NULL DEFAULT 0, CONSTRAINT "PageViewDaily_pkey" PRIMARY KEY ("day","path"));
+UPDATE "BillingPlan" SET "projectKey" = 'trioz', "projectUrl" = 'https://trioz.ru', "productType" = 'SUBSCRIPTION' WHERE "kind" IN ('PREMIUM','VPN');
+ALTER TABLE "LeadRequest" ADD COLUMN "legalSnapshot" TEXT NOT NULL DEFAULT '';

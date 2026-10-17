@@ -1,3 +1,4 @@
+import { CookieConsent } from "@/components/cookie-consent";
 import { safeJsonLd } from "@/lib/json-ld";
 import type { Metadata } from "next";
 import { Manrope, Unbounded } from "next/font/google";
@@ -105,6 +106,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: safeJsonLd(structuredData) }}
         />
         {children}
+        <CookieConsent />
       </body>
     </html>
   );

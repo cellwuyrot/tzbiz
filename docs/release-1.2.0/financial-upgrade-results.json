@@ -1,0 +1,18 @@
+{
+  "migrations_before": 8,
+  "rows_before": {
+    "User": 3,
+    "BusinessOrder": 4,
+    "Invoice": 4
+  },
+  "invoices_digest_before": "108bcdf9aaeba84a13e2e2a6dcd2fbbaa38095e0913058b0bf4a9f652939f6e7",
+  "migrations_after": 9,
+  "rows_after": {
+    "User": 3,
+    "BusinessOrder": 4,
+    "Invoice": 4
+  },
+  "invoices_digest_after": "108bcdf9aaeba84a13e2e2a6dcd2fbbaa38095e0913058b0bf4a9f652939f6e7",
+  "foreign_key_errors": [],
+  "ok": true
+}

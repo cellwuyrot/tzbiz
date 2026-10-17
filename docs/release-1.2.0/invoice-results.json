@@ -1,0 +1,21 @@
+{
+  "passed": 16,
+  "checks": [
+    "invoice role and CSRF protection",
+    "bank invoice blocked without bank details",
+    "bank invoice creation and idempotency",
+    "acquiring link uses exact approved provider host",
+    "external recurring invoice requires period and cancellation terms",
+    "invoice ownership and anonymous access protection",
+    "manual payment evidence, audit and terminal-state protection",
+    "immutable seller and bank snapshot",
+    "concurrent invoice edit protection",
+    "cancelled invoice hides external payment action",
+    "prepayment work starts only after linked full payment reconciliation",
+    "paid external subscription invoice does not fabricate TZ ID access",
+    "client deletion preserves financial records with clear conflict",
+    "lead pagination exposes records beyond the first page",
+    "client search resolves latest lead independently of lead page",
+    "integration diagnostics report worker heartbeat"
+  ]
+}

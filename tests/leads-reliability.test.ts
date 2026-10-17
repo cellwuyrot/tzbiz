@@ -12,8 +12,22 @@ vi.mock("@/lib/rate-limit", () => ({
 }));
 import { prisma } from "@/lib/db";
 import { consumeRate } from "@/lib/rate-limit";
+vi.mock("@/lib/legal-store", async (original) => {
+  const actual = await original<typeof import("@/lib/legal-store")>();
+  return {
+    ...actual,
+    legalState: async () => ({
+      ready: true,
+      versions: {
+        agreement: "published-agreement",
+        privacy: "published-privacy",
+        consent: "published-consent",
+      },
+    }),
+  };
+});
 import { POST } from "@/app/api/leads/route";
-import { AGREEMENT_VERSION, PRIVACY_VERSION } from "@/lib/legal";
+
 const data = {
   name: "Тестовый клиент",
   email: "test@example.test",
@@ -22,6 +36,11 @@ const data = {
   serviceSlug: "test-service",
   message: "Тестовое описание задачи",
   privacyConsent: true,
+  legalVersions: {
+    agreement: "published-agreement",
+    privacy: "published-privacy",
+    consent: "published-consent",
+  },
   agreementAccepted: true,
   website: "",
 };
@@ -81,8 +100,8 @@ describe("durable public leads", () => {
   it("records server time and actual document versions", async () => {
     await POST(request());
     const d = vi.mocked(prisma.leadRequest.create).mock.calls[0][0].data;
-    expect(d.agreementVersion).toBe(AGREEMENT_VERSION);
-    expect(d.privacyVersion).toBe(PRIVACY_VERSION);
+    expect(d.agreementVersion).toBe("published-agreement");
+    expect(d.privacyVersion).toBe("published-privacy");
     expect(d.privacyConsentAt).toBeInstanceOf(Date);
     expect(d.agreementAcceptedAt).toEqual(d.privacyConsentAt);
   });

@@ -5,7 +5,11 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getCommerceSettings } from "@/lib/commerce";
-import { SETTLEMENT_LABELS, PERIOD_LABELS } from "@/lib/billing/plan";
+import {
+  SETTLEMENT_LABELS,
+  PERIOD_LABELS,
+  PRODUCT_TYPE_LABELS,
+} from "@/lib/billing/plan";
 import { SiteHeader } from "@/components/site-header";
 import { OrderRequest } from "@/components/order-request";
 export const dynamic = "force-dynamic";
@@ -17,9 +21,12 @@ export async function generateMetadata({
   const { id } = await params;
   const p = await prisma.billingPlan.findUnique({ where: { id } });
   return {
-    title: p?.isPublished && !p.isArchived ? renameDisplayText(p.title) : "Предложение",
+    title:
+      p?.isPublished && !p.isArchived
+        ? renameDisplayText(p.title)
+        : "Предложение",
     alternates: { canonical: `/plans/${id}` },
-    description: p ? renameDisplayText(p.description).slice(0,160) : undefined,
+    description: p ? renameDisplayText(p.description).slice(0, 160) : undefined,
     robots: { index: true, follow: true },
   };
 }
@@ -59,7 +66,14 @@ export default async function Plan({
               ]
             }
           </p>
-          <h1 className="type-h2 break-words">{renameDisplayText(plan.title)}</h1>
+          <p className="type-ui text-muted">
+            {PRODUCT_TYPE_LABELS[
+              plan.productType as keyof typeof PRODUCT_TYPE_LABELS
+            ] || "Услуга"}
+          </p>
+          <h1 className="type-h2 break-words">
+            {renameDisplayText(plan.title)}
+          </h1>
           <p className="type-h3">
             {plan.amountMinor === null
               ? "Стоимость согласуем"
@@ -77,6 +91,46 @@ export default async function Plan({
           <p className="type-body whitespace-pre-wrap text-muted">
             {renameDisplayText(plan.description)}
           </p>
+          <div className="panel space-y-4 p-5">
+            <h2 className="type-h3">Где действует</h2>
+            <p className="type-body break-words">{plan.projectKey}</p>
+            <a
+              className="text-accent underline break-all"
+              href={plan.projectUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Открыть проект ↗
+            </a>
+            <p className="type-ui text-muted">
+              TZ ID идентифицирует аккаунт. Счёт и общий вход не активируют
+              права в принимающем проекте. Автоматическая выдача доступа пока не
+              подключена.
+            </p>
+          </div>
+          {plan.cardImageUrl && (
+            <img
+              src={plan.cardImageUrl}
+              alt={plan.title}
+              className="aspect-video w-full rounded-xl object-cover"
+            />
+          )}
+          {plan.features && (
+            <div>
+              <h2 className="type-h3">Состав и характеристики</h2>
+              <p className="type-body mt-3 whitespace-pre-wrap text-muted">
+                {renameDisplayText(plan.features)}
+              </p>
+            </div>
+          )}
+          {plan.fulfillmentTerms && (
+            <div>
+              <h2 className="type-h3">Получение и сроки</h2>
+              <p className="type-body mt-3 whitespace-pre-wrap text-muted">
+                {renameDisplayText(plan.fulfillmentTerms)}
+              </p>
+            </div>
+          )}
           {plan.renewalTerms && (
             <div>
               <h2 className="type-h3">Продление</h2>

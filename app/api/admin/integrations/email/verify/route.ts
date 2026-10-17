@@ -9,8 +9,16 @@ export async function POST(request: NextRequest) {
   const auth = await requireApiRole("ADMIN");
   if (auth.response) return auth.response;
   if (!verifyCsrf(request)) return jsonError("Неверный CSRF-токен.", 403);
-  if (!adminMailAllowed(auth.user!.id, "verify")) return jsonError("Лимит проверок: 3 за 10 минут.", 429);
+  if (!adminMailAllowed(auth.user!.id, "verify"))
+    return jsonError("Лимит проверок: 3 за 10 минут.", 429);
   const result = await verifyMailConnection();
-  const recorded = await recordIntegrationCheck("smtp.verify", result.status === "SMTP_ACCEPTED" ? "SUCCESS" : "FAILED", result.errorCategory);
-  return NextResponse.json({ ok: result.status === "SMTP_ACCEPTED", result, recorded }, { headers: { "Cache-Control": "private, no-store" } });
+  const recorded = await recordIntegrationCheck(
+    "smtp.verify",
+    result.status === "SMTP_ACCEPTED" ? "SUCCESS" : "FAILED",
+    result.errorCategory,
+  );
+  return NextResponse.json(
+    { ok: result.status === "SMTP_ACCEPTED", result, recorded },
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
 }

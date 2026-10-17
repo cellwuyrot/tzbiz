@@ -1,4 +1,7 @@
-import { logTzCallbackFailure, type TzCallbackStage } from "@/lib/tz-id/diagnostics";
+import {
+  logTzCallbackFailure,
+  type TzCallbackStage,
+} from "@/lib/tz-id/diagnostics";
 import { readTzProjectRole } from "@/lib/tz-id/project-role";
 import { safeReturnTo } from "@/lib/return-to";
 import { NextRequest, NextResponse } from "next/server";
@@ -90,7 +93,11 @@ export async function GET(request: NextRequest) {
     stage = "project_role";
     let destination = safeReturnTo(transaction.returnTo);
     if (destination === "/account") {
-      const role = await readTzProjectRole({ tzIssuer: config.issuer, tzSubject: claims.sub, tzAccessTokenEncrypted: sealTzData(token.access_token) });
+      const role = await readTzProjectRole({
+        tzIssuer: config.issuer,
+        tzSubject: claims.sub,
+        tzAccessTokenEncrypted: sealTzData(token.access_token),
+      });
       if (role === "ADMIN") destination = "/admin";
     }
     stage = "redirect";

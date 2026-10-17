@@ -5,6 +5,12 @@ vi.mock("@/lib/db", () => ({ prisma: {} }));
 import { requireApiRole } from "@/lib/api-auth";
 
 const modules: Record<string, () => Promise<unknown>> = {
+  "/app/api/admin/documents/route.ts": () =>
+    import("@/app/api/admin/documents/route"),
+  "/app/api/admin/analytics/route.ts": () =>
+    import("@/app/api/admin/analytics/route"),
+  "/app/api/admin/billing/plans/[id]/image/route.ts": () =>
+    import("@/app/api/admin/billing/plans/[id]/image/route"),
   "/app/api/admin/invoices/route.ts": () =>
     import("@/app/api/admin/invoices/route"),
   "/app/api/admin/invoices/[id]/route.ts": () =>

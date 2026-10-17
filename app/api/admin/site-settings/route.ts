@@ -20,7 +20,8 @@ export async function PATCH(request: NextRequest) {
 
   const body = await request.json().catch(() => null);
   const parsed = siteSettingsSchema.safeParse(body);
-  if (!parsed.success) return jsonError("Проверьте девиз, первый экран и контакты.", 400);
+  if (!parsed.success)
+    return jsonError("Проверьте девиз, первый экран и контакты.", 400);
 
   const settings = await prisma.siteSettings.upsert({
     where: { id: "site-settings" },

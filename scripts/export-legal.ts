@@ -1,19 +1,10 @@
 import fs from "node:fs";
-import {
-  agreementDocument,
-  privacyDocument,
-  legalNotice,
-} from "../lib/legal-documents";
-for (const [name, d] of [
-  ["AGREEMENT", agreementDocument],
-  ["PRIVACY", privacyDocument],
-] as const) {
+import { LEGAL_SLUGS, defaultLegal } from "../lib/legal-store";
+import { legalNotice } from "../lib/legal-documents";
+for (const slug of LEGAL_SLUGS) {
+  const d = defaultLegal(slug);
   fs.writeFileSync(
-    `docs/${name}.md`,
-    `# ${d.title}\n\nРедакция: ${d.version}\n\n${legalNotice}\n\n` +
-      d.sections
-        .map((s) => `## ${s.title}\n\n${s.paragraphs.join("\n\n")}`)
-        .join("\n\n") +
-      "\n",
+    `docs/${slug.toUpperCase()}.md`,
+    `# ${d.title}\n\nЧЕРНОВИК ШАБЛОНА. Не является публикацией в базе.\n\n${legalNotice}\n\n${d.body}\n`,
   );
 }

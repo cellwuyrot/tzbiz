@@ -17,35 +17,78 @@ export type LeadNotification = {
 function getTransport() {
   const config = getMailConfig();
   return nodemailer.createTransport({
-    host: config.host, port: config.port, secure: config.secure, requireTLS: !config.secure,
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    requireTLS: !config.secure,
     auth: { user: config.user, pass: config.pass },
-    connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 10_000,
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 10_000,
   });
 }
 
 function failure(error: unknown): MailResult {
-  const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
-  if (error instanceof MailConfigurationError || code === "CONFIG") return { status: "FAILED", errorCategory: "CONFIG" };
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? String(error.code)
+      : "";
+  if (error instanceof MailConfigurationError || code === "CONFIG")
+    return { status: "FAILED", errorCategory: "CONFIG" };
   if (code === "EENVELOPE") {
-    const command = error && typeof error === "object" && "command" in error ? String(error.command) : "";
-    return { status: "FAILED", errorCategory: command === "MAIL FROM" ? "SENDER" : command === "RCPT TO" ? "RECIPIENT" : "ENVELOPE" };
+    const command =
+      error && typeof error === "object" && "command" in error
+        ? String(error.command)
+        : "";
+    return {
+      status: "FAILED",
+      errorCategory:
+        command === "MAIL FROM"
+          ? "SENDER"
+          : command === "RCPT TO"
+            ? "RECIPIENT"
+            : "ENVELOPE",
+    };
   }
-  if (["ETIMEDOUT", "ESOCKET"].includes(code)) return { status: "UNKNOWN", errorCategory: "TIMEOUT" };
-  const categories: Record<string, string> = { EAUTH: "AUTH", ETLS: "TLS", EENVELOPE: "RECIPIENT", RECIPIENT: "RECIPIENT", ECONNECTION: "CONNECTION", ECONNREFUSED: "CONNECTION", ENOTFOUND: "CONNECTION", ESMTP: "SMTP" };
-  return { status: categories[code] ? "FAILED" : "UNKNOWN", errorCategory: categories[code] || "UNKNOWN" };
+  if (["ETIMEDOUT", "ESOCKET"].includes(code))
+    return { status: "UNKNOWN", errorCategory: "TIMEOUT" };
+  const categories: Record<string, string> = {
+    EAUTH: "AUTH",
+    ETLS: "TLS",
+    EENVELOPE: "RECIPIENT",
+    RECIPIENT: "RECIPIENT",
+    ECONNECTION: "CONNECTION",
+    ECONNREFUSED: "CONNECTION",
+    ENOTFOUND: "CONNECTION",
+    ESMTP: "SMTP",
+  };
+  return {
+    status: categories[code] ? "FAILED" : "UNKNOWN",
+    errorCategory: categories[code] || "UNKNOWN",
+  };
 }
 
-async function sendSafely(transport: ReturnType<typeof getTransport>, message: Parameters<typeof transport.sendMail>[0]): Promise<MailResult> {
+async function sendSafely(
+  transport: ReturnType<typeof getTransport>,
+  message: Parameters<typeof transport.sendMail>[0],
+): Promise<MailResult> {
   try {
     const info = await transport.sendMail(message);
-    if (!info.accepted?.length || info.rejected?.length) return { status: "FAILED", errorCategory: "RECIPIENT" };
+    if (!info.accepted?.length || info.rejected?.length)
+      return { status: "FAILED", errorCategory: "RECIPIENT" };
     return { status: "SMTP_ACCEPTED", errorCategory: null };
-  } catch (error) { return failure(error); }
+  } catch (error) {
+    return failure(error);
+  }
 }
 
 function escapeHtml(value: string) {
-  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function template(title: string, paragraphs: string[]) {
@@ -70,77 +113,145 @@ function leadMessages(lead: LeadNotification) {
     `Описание задачи:\n${lead.message}`,
   ];
   return [
-    { from, to: lead.email, replyTo: contact, subject: `TRIOZ · Заявка ${lead.id.replace(/[\r\n]/g, " ")} получена`,
-      text: ["Заявка получена", ...clientParagraphs].join("\n\n"), html: template("Заявка получена", clientParagraphs) },
-    { from, to: internalTo, replyTo: lead.email, subject: `Новая заявка TRIOZ · ${lead.serviceTitle.replace(/[\r\n]/g, " ")}`,
-      text: ["Новая заявка TRIOZ", ...internalParagraphs].join("\n\n"), html: template("Новая заявка TRIOZ", internalParagraphs) },
+    {
+      from,
+      to: lead.email,
+      replyTo: contact,
+      subject: `TRIOZ · Заявка ${lead.id.replace(/[\r\n]/g, " ")} получена`,
+      text: ["Заявка получена", ...clientParagraphs].join("\n\n"),
+      html: template("Заявка получена", clientParagraphs),
+    },
+    {
+      from,
+      to: internalTo,
+      replyTo: lead.email,
+      subject: `Новая заявка TRIOZ · ${lead.serviceTitle.replace(/[\r\n]/g, " ")}`,
+      text: ["Новая заявка TRIOZ", ...internalParagraphs].join("\n\n"),
+      html: template("Новая заявка TRIOZ", internalParagraphs),
+    },
   ];
 }
 
 // A single existing SMTP transport and two independent messages. The callback
 // records each result; database/logging failure cannot prevent the other send.
-export async function sendLeadNotification(lead: LeadNotification, onResult?: (channel: MailChannel, result: MailResult) => Promise<void>) {
+export async function sendLeadNotification(
+  lead: LeadNotification,
+  onResult?: (channel: MailChannel, result: MailResult) => Promise<void>,
+) {
   let transport: ReturnType<typeof getTransport> | undefined;
-  const setup = Promise.resolve().then(() => { transport = getTransport(); return { transport, messages: leadMessages(lead) }; });
-  const settled = await Promise.allSettled((["client", "internal"] as const).map(async (channel, index) => {
-    let result: MailResult;
-    try {
-      const prepared = await setup;
-      result = await sendSafely(prepared.transport, prepared.messages[index]);
-    } catch (error) { result = failure(error); }
-    if (result.status !== "SMTP_ACCEPTED") console.warn("Lead notification not accepted", { leadId: lead.id, channel, category: result.errorCategory });
-    if (onResult) {
-      try { await onResult(channel, result); }
-      catch { console.error("Lead notification status not recorded", { leadId: lead.id, channel }); }
-    }
-    return result;
-  }));
+  const setup = Promise.resolve().then(() => {
+    transport = getTransport();
+    return { transport, messages: leadMessages(lead) };
+  });
+  const settled = await Promise.allSettled(
+    (["client", "internal"] as const).map(async (channel, index) => {
+      let result: MailResult;
+      try {
+        const prepared = await setup;
+        result = await sendSafely(prepared.transport, prepared.messages[index]);
+      } catch (error) {
+        result = failure(error);
+      }
+      if (result.status !== "SMTP_ACCEPTED")
+        console.warn("Lead notification not accepted", {
+          leadId: lead.id,
+          channel,
+          category: result.errorCategory,
+        });
+      if (onResult) {
+        try {
+          await onResult(channel, result);
+        } catch {
+          console.error("Lead notification status not recorded", {
+            leadId: lead.id,
+            channel,
+          });
+        }
+      }
+      return result;
+    }),
+  );
   transport?.close();
   return {
-    clientNotified: settled[0].status === "fulfilled" && settled[0].value.status === "SMTP_ACCEPTED",
-    internalNotified: settled[1].status === "fulfilled" && settled[1].value.status === "SMTP_ACCEPTED",
+    clientNotified:
+      settled[0].status === "fulfilled" &&
+      settled[0].value.status === "SMTP_ACCEPTED",
+    internalNotified:
+      settled[1].status === "fulfilled" &&
+      settled[1].value.status === "SMTP_ACCEPTED",
   };
 }
 
-export async function sendLeadChannel(lead: LeadNotification, channel: MailChannel): Promise<MailResult> {
+export async function sendLeadChannel(
+  lead: LeadNotification,
+  channel: MailChannel,
+): Promise<MailResult> {
   let transport: ReturnType<typeof getTransport> | undefined;
   try {
     transport = getTransport();
-    return await sendSafely(transport, leadMessages(lead)[channel === "client" ? 0 : 1]);
-  } catch (error) { return failure(error); }
-  finally { transport?.close(); }
+    return await sendSafely(
+      transport,
+      leadMessages(lead)[channel === "client" ? 0 : 1],
+    );
+  } catch (error) {
+    return failure(error);
+  } finally {
+    transport?.close();
+  }
 }
 
 export async function verifyMailConnection(): Promise<MailResult> {
   let transport: ReturnType<typeof getTransport> | undefined;
-  try { transport = getTransport(); const verified = await transport.verify(); return verified === true ? { status: "SMTP_ACCEPTED", errorCategory: null } : { status: "FAILED", errorCategory: "CONNECTION" }; }
-  catch (error) { return failure(error); }
-  finally { transport?.close(); }
+  try {
+    transport = getTransport();
+    const verified = await transport.verify();
+    return verified === true
+      ? { status: "SMTP_ACCEPTED", errorCategory: null }
+      : { status: "FAILED", errorCategory: "CONNECTION" };
+  } catch (error) {
+    return failure(error);
+  } finally {
+    transport?.close();
+  }
 }
 
 export async function sendMailDiagnostic(clientTo: string) {
   let transport: ReturnType<typeof getTransport> | undefined;
-  const results = await Promise.allSettled(["client", "internal"].map(async channel => {
-    try {
-      const config = getMailConfig();
-      transport ??= getTransport();
-      const paragraphs = [
-        "Это диагностическое письмо, отправленное администратором TRIOZ Business. Заявка и заказ не создавались.",
-        channel === "client" ? "Проверяется клиентский канал уведомлений." : "Проверяется внутренний канал уведомлений команды.",
-        `Время проверки: ${new Date().toISOString()} (UTC)`,
-        `Контакт команды: ${config.replyTo}`,
-      ];
-      return await sendSafely(transport, {
-        from: config.from, to: channel === "client" ? clientTo : config.internalTo,
-        replyTo: channel === "client" ? config.replyTo : clientTo,
-        subject: `Тест SMTP TRIOZ Business · ${channel === "client" ? "клиентский канал" : "внутренний канал"}`,
-        text: paragraphs.join("\n\n"), html: template("Тест SMTP — не заявка", paragraphs),
-      });
-    } catch (error) { return failure(error); }
-  }));
+  const results = await Promise.allSettled(
+    ["client", "internal"].map(async (channel) => {
+      try {
+        const config = getMailConfig();
+        transport ??= getTransport();
+        const paragraphs = [
+          "Это диагностическое письмо, отправленное администратором TRIOZ Business. Заявка и заказ не создавались.",
+          channel === "client"
+            ? "Проверяется клиентский канал уведомлений."
+            : "Проверяется внутренний канал уведомлений команды.",
+          `Время проверки: ${new Date().toISOString()} (UTC)`,
+          `Контакт команды: ${config.replyTo}`,
+        ];
+        return await sendSafely(transport, {
+          from: config.from,
+          to: channel === "client" ? clientTo : config.internalTo,
+          replyTo: channel === "client" ? config.replyTo : clientTo,
+          subject: `Тест SMTP TRIOZ Business · ${channel === "client" ? "клиентский канал" : "внутренний канал"}`,
+          text: paragraphs.join("\n\n"),
+          html: template("Тест SMTP — не заявка", paragraphs),
+        });
+      } catch (error) {
+        return failure(error);
+      }
+    }),
+  );
   transport?.close();
   return {
-    client: results[0].status === "fulfilled" ? results[0].value : { status: "UNKNOWN" as const, errorCategory: "UNKNOWN" },
-    internal: results[1].status === "fulfilled" ? results[1].value : { status: "UNKNOWN" as const, errorCategory: "UNKNOWN" },
+    client:
+      results[0].status === "fulfilled"
+        ? results[0].value
+        : { status: "UNKNOWN" as const, errorCategory: "UNKNOWN" },
+    internal:
+      results[1].status === "fulfilled"
+        ? results[1].value
+        : { status: "UNKNOWN" as const, errorCategory: "UNKNOWN" },
   };
 }

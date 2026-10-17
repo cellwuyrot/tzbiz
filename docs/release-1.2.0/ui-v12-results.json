@@ -1,0 +1,174 @@
+{
+  "ok": true,
+  "results": [
+    {
+      "name": "admin-services",
+      "width": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "admin-projects",
+      "width": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "admin-leads",
+      "width": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "admin-clients",
+      "width": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "admin-settings",
+      "width": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "admin-integrations",
+      "width": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "admin-catalog",
+      "width": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "admin-invoices",
+      "width": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "admin-commerce",
+      "width": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "admin-documents",
+      "width": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "admin-analytics",
+      "width": 1440,
+      "scroll": 1440
+    },
+    {
+      "name": "admin-services",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "admin-projects",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "admin-leads",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "admin-clients",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "admin-settings",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "admin-integrations",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "admin-catalog",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "admin-invoices",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "admin-commerce",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "admin-documents",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "admin-analytics",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "legal-draft-ui-save",
+      "ok": true
+    },
+    {
+      "name": "public--plans",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "public--plans-cmvcsn9xm001frs3anu6tecj8",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "public--documents",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "public--privacy",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "public--documents-offer",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "public--documents-cookies",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "public--documents-consent",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "public--account",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "client-product-order-ui",
+      "ok": true
+    },
+    {
+      "name": "client-order-success",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "name": "cookie-ui-opt-in-withdrawal",
+      "requests": 2,
+      "ok": true
+    }
+  ],
+  "browserErrors": []
+}

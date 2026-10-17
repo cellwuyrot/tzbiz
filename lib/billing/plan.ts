@@ -2,8 +2,15 @@ import { renameDisplayText } from "../display-labels";
 import { z } from "zod";
 export const PLAN_KIND_LABELS = {
   SERVICE: "Услуга Business",
+  PRODUCT: "Товар / услуга другого проекта",
   PREMIUM: "Premium основного проекта",
   VPN: "Надёжное соединение",
+} as const;
+export const PRODUCT_TYPE_LABELS = {
+  SERVICE: "Услуга",
+  GOOD: "Товар",
+  DIGITAL: "Цифровой продукт",
+  SUBSCRIPTION: "Подписка",
 } as const;
 export const SETTLEMENT_LABELS = {
   NO_PREPAYMENT: "Без предоплаты",
@@ -34,8 +41,50 @@ export function minorToRubles(minor: number | null) {
 }
 export const planInputSchema = z
   .object({
-    kind: z.enum(["SERVICE", "PREMIUM", "VPN"]),
+    kind: z.enum(["SERVICE", "PREMIUM", "VPN", "PRODUCT"]),
     serviceId: z.string().cuid().nullable(),
+    productType: z
+      .enum(["SERVICE", "GOOD", "DIGITAL", "SUBSCRIPTION"])
+      .default("SERVICE"),
+    projectKey: z
+      .string()
+      .trim()
+      .regex(/^[a-z0-9][a-z0-9._-]{0,63}$/)
+      .default("business"),
+    projectUrl: z
+      .string()
+      .trim()
+      .max(500)
+      .refine((v) => {
+        try {
+          const u = new URL(v);
+          return (
+            u.protocol === "https:" &&
+            !u.username &&
+            !u.password &&
+            !u.search &&
+            !u.hash &&
+            (!u.port || u.port === "443")
+          );
+        } catch {
+          return false;
+        }
+      }, "Адрес проекта: HTTPS без пароля, параметров и нестандартного порта.")
+      .default("https://business.trioz.ru"),
+    cardImageUrl: z
+      .string()
+      .trim()
+      .max(500)
+      .refine(
+        (v) =>
+          !v ||
+          (/^\/api\/uploads\/[a-f0-9]{40}\.(png|jpg|webp)$/.test(v) &&
+            !v.includes("..")),
+        "Используйте изображение, загруженное через админку (/api/uploads/).",
+      )
+      .default(""),
+    features: z.string().trim().max(5000).default(""),
+    fulfillmentTerms: z.string().trim().max(5000).default(""),
     title: z.string().trim().min(2).max(160),
     description: z.string().trim().min(10).max(5000),
     mode: z.enum(["ONE_TIME", "RECURRING"]),
@@ -84,17 +133,26 @@ export const planInputSchema = z
         "Подписка требует регулярного периода; другие режимы — разовую услугу.",
       );
     if (
-      plan.kind !== "SERVICE" &&
+      ["PREMIUM", "VPN"].includes(plan.kind) &&
       (settlement !== "SUBSCRIPTION" || plan.mode !== "RECURRING")
     )
       issue(
         "kind",
-        "Premium / «Надёжное соединение» оформляются только как подписки TZ ID.",
+        "Premium / «Надёжное соединение» оформляются только как подписки продуктов TrioZ, не как способ входа.",
       );
     if (plan.isPublished && plan.kind !== "SERVICE" && !plan.externalProductId)
       issue(
         "externalProductId",
-        "Укажите настоящий ID продукта TZ ID из документации платформы.",
+        "Укажите настоящий ID продукта из принимающего проекта.",
+      );
+    if (
+      plan.kind === "PRODUCT" &&
+      plan.isPublished &&
+      plan.fulfillmentTerms.length < 10
+    )
+      issue(
+        "fulfillmentTerms",
+        "Укажите порядок предоставления или доставки товара/услуги.",
       );
     if (plan.kind === "SERVICE" && !plan.serviceId)
       issue("serviceId", "Выберите существующую услугу.");
@@ -126,6 +184,9 @@ export function planData(input: z.infer<typeof planInputSchema>) {
   const { amountRub, ...data } = input;
   return {
     ...data,
+    productType: ["PREMIUM", "VPN"].includes(input.kind)
+      ? "SUBSCRIPTION"
+      : input.productType,
     settlementMode:
       input.settlementMode ??
       (input.mode === "RECURRING" ? "SUBSCRIPTION" : "PREPAYMENT"),
@@ -150,6 +211,12 @@ export function publicPlan<
     cancellationTerms: string;
     revision: number;
     settlementMode?: string;
+    productType?: string;
+    projectKey?: string;
+    projectUrl?: string;
+    cardImageUrl?: string;
+    features?: string;
+    fulfillmentTerms?: string;
     service?: { slug: string; title: string } | null;
   },
 >(plan: T) {
@@ -172,6 +239,12 @@ export function publicPlan<
   return {
     id,
     kind,
+    productType: plan.productType || "SERVICE",
+    projectKey: plan.projectKey || "business",
+    projectUrl: plan.projectUrl || "https://business.trioz.ru",
+    cardImageUrl: plan.cardImageUrl || "",
+    features: renameDisplayText(plan.features || ""),
+    fulfillmentTerms: renameDisplayText(plan.fulfillmentTerms || ""),
     title: renameDisplayText(title),
     description: renameDisplayText(description),
     mode,

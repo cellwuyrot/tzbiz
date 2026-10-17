@@ -17,6 +17,9 @@ export function OrderHistory({ orders }: { orders: BusinessOrder[] }) {
       ) : (
         orders.map((o) => {
           let plan: {
+            projectKey?: string;
+            projectUrl?: string;
+            fulfillmentTerms?: string;
             description?: string;
             renewalTerms?: string;
             cancellationTerms?: string;
@@ -32,7 +35,9 @@ export function OrderHistory({ orders }: { orders: BusinessOrder[] }) {
                 {ORDER_STATUS[o.status as keyof typeof ORDER_STATUS] ||
                   o.status}
               </span>
-              <h3 className="type-h3 break-words">{renameDisplayText(o.title)}</h3>
+              <h3 className="type-h3 break-words">
+                {renameDisplayText(o.title)}
+              </h3>
               <p className="type-body text-muted">
                 {o.amountMinor === null
                   ? "Стоимость согласуется"
@@ -44,12 +49,20 @@ export function OrderHistory({ orders }: { orders: BusinessOrder[] }) {
               </p>
               <p className="type-ui text-subtle break-all">
                 <span className="block">№ {o.id}</span>
-            <span className="block">{o.createdAt.toLocaleDateString("ru-RU")}</span>
+                <span className="block">
+                  {o.createdAt.toLocaleDateString("ru-RU")}
+                </span>
               </p>
               <p className="type-ui text-muted">
                 Этот статус не является подтверждением платежа или активной
-                подписки TZ ID.
+                подписки в принимающем проекте.
               </p>
+              {plan.projectKey && (
+                <p className="type-ui text-muted">
+                  Проект использования: {plan.projectKey}. Внешний проект ещё не
+                  подтверждает права через Business.
+                </p>
+              )}
               <details>
                 <summary className="type-ui text-accent cursor-pointer">
                   Сохранённые условия и обращение

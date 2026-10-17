@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Оформление и оплата услуг",
   description:
-    "Порядок согласования услуг TRIOZ: без предоплаты, с предоплатой и подписки TZ ID.",
+    "Порядок согласования услуг TRIOZ: без предоплаты, с предоплатой и подписки продуктов TrioZ.",
   alternates: { canonical: "/payment" },
 };
 export default async function Payment() {
@@ -53,11 +53,13 @@ export default async function Payment() {
                 Подписки Premium и «Надёжное соединение»
               </h2>
               <p className="mt-3 type-body text-muted">
-                Продукты принадлежат системе TZ ID. Пока интеграция её биллинга
-                и выдачи доступа не подключена, подача заявки здесь не
-                активирует доступ. Если продавец выставил счёт со ссылкой на
-                подписку, согласие на регулярные списания, продление и отмена
-                оформляются отдельно у платёжного провайдера.
+                Подписка действует в проекте, указанном в карточке. TZ ID —
+                способ входа и идентификации, а не платёжная система. Пока API
+                выдачи прав принимающего проекта не подключён, заявка или
+                отметка оплаты в Business не активирует там доступ. Если
+                продавец выставил счёт со ссылкой на подписку, согласие на
+                регулярные списания, продление и отмена оформляются отдельно у
+                платёжного провайдера.
               </p>
             </div>
           </div>
@@ -100,6 +102,12 @@ export default async function Payment() {
             <a href="/privacy" className="text-accent">
               Политика данных
             </a>
+            <Link href="/documents/offer" className="text-accent">
+              Оферта
+            </Link>
+            <Link href="/documents" className="text-accent">
+              Все документы
+            </Link>
             <Link href="/plans" className="button-primary">
               Выбрать предложение
             </Link>

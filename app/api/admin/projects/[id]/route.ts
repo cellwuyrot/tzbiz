@@ -38,7 +38,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const current = await prisma.project.findUnique({ where: { id } });
   if (!current) return jsonError("Проект не найден.", 404);
   if (parsed.data.clientId) {
-    const client = await prisma.user.findFirst({ where: { id: parsed.data.clientId, role: "CLIENT" }, select: { id: true } });
+    const client = await prisma.user.findFirst({
+      where: { id: parsed.data.clientId, role: "CLIENT" },
+      select: { id: true },
+    });
     if (!client) return jsonError("Выбранный клиент не найден.", 400);
   }
 
@@ -51,12 +54,25 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       nextPreviewPath = saved.path;
       replacedPreviewPath = current.previewPath;
     }
-    const project = await prisma.project.update({ where: { id }, data: { ...parsed.data, previewPath: nextPreviewPath }, include: { client: { select: { id: true, name: true, email: true } } } });
+    const project = await prisma.project.update({
+      where: { id },
+      data: { ...parsed.data, previewPath: nextPreviewPath },
+      include: { client: { select: { id: true, name: true, email: true } } },
+    });
     if (replacedPreviewPath) await removePreview(replacedPreviewPath);
     return NextResponse.json({ project });
   } catch (error) {
-    if (nextPreviewPath !== current.previewPath) await removePreview(nextPreviewPath);
-    if (error instanceof Error && (error.message.includes("Разрешены только") || error.message.includes("Расширение") || error.message.includes("Размер") || error.message.includes("формату изображения") || error.message.includes("Превью проекта"))) return jsonError(error.message, 400);
+    if (nextPreviewPath !== current.previewPath)
+      await removePreview(nextPreviewPath);
+    if (
+      error instanceof Error &&
+      (error.message.includes("Разрешены только") ||
+        error.message.includes("Расширение") ||
+        error.message.includes("Размер") ||
+        error.message.includes("формату изображения") ||
+        error.message.includes("Превью проекта"))
+    )
+      return jsonError(error.message, 400);
     throw error;
   }
 }
@@ -66,7 +82,10 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   if (auth.response) return auth.response;
   if (!verifyCsrf(request)) return jsonError("Неверный CSRF-токен.", 403);
   const { id } = await params;
-  const project = await prisma.project.findUnique({ where: { id }, select: { previewPath: true } });
+  const project = await prisma.project.findUnique({
+    where: { id },
+    select: { previewPath: true },
+  });
   if (!project) return jsonError("Проект не найден.", 404);
   await prisma.project.delete({ where: { id } });
   await removePreview(project.previewPath);

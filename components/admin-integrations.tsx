@@ -304,7 +304,7 @@ export function AdminIntegrations() {
 
             <dl className="admin-facts type-ui">
               <div>
-                <dt>Автоматическая выдача подписок TZ ID</dt>
+                <dt>Выдача прав в проекты TrioZ</dt>
                 <dd>Не подключена</dd>
               </div>
               <div>

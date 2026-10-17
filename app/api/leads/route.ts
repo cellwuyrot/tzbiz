@@ -1,8 +1,9 @@
+import { diagnosticResponse } from "@/lib/diagnostics";
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { leadRequestSchema } from "@/lib/validation";
-import { AGREEMENT_VERSION, PRIVACY_VERSION } from "@/lib/legal";
+import { legalState, versionsMatch } from "@/lib/legal-store";
 import { jsonError } from "@/lib/security";
 import { consumeRate, requestIp } from "@/lib/rate-limit";
 export const runtime = "nodejs";
@@ -46,6 +47,23 @@ export async function POST(r: NextRequest) {
   try {
     const old = await duplicate();
     if (old) return old;
+    const legal = await legalState();
+    if (!legal.ready)
+      return jsonError(
+        "Владелец ещё не опубликовал обязательные документы.",
+        503,
+      );
+    if (
+      !versionsMatch(legal.versions, p.data.legalVersions, [
+        "agreement",
+        "privacy",
+        "consent",
+      ])
+    )
+      return jsonError(
+        "Документы изменились. Обновите страницу и подтвердите актуальные редакции.",
+        409,
+      );
     const limit = await consumeRate("leads", requestIp(r), 4, 900_000);
     if (!limit.allowed)
       return jsonError("Слишком много заявок. Попробуйте позже.", 429, {
@@ -68,8 +86,13 @@ export async function POST(r: NextRequest) {
         message: p.data.message,
         privacyConsentAt: now,
         agreementAcceptedAt: now,
-        agreementVersion: AGREEMENT_VERSION,
-        privacyVersion: PRIVACY_VERSION,
+        agreementVersion: legal.versions.agreement,
+        privacyVersion: legal.versions.privacy,
+        legalSnapshot: JSON.stringify({
+          versions: p.data.legalVersions,
+          acceptedAt: now.toISOString(),
+          purpose: "Рассмотрение заявки и обратная связь; без рекламы",
+        }),
         submissionKey: rawKey,
         requestHash: hash,
         clientEmailStatus: "PENDING",
@@ -84,10 +107,9 @@ export async function POST(r: NextRequest) {
       { ok: true, id: lead.id, emailNotified: false, queued: true },
       { status: 201, headers: { "Cache-Control": "no-store" } },
     );
-  } catch {
+  } catch (error) {
     const old = await duplicate().catch(() => null);
     if (old) return old;
-    console.error("Lead persistence failed");
-    return jsonError("Не удалось сохранить заявку. Повторите отправку.", 503);
+    return diagnosticResponse("leads.create", error);
   }
 }

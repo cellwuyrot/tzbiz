@@ -2,13 +2,19 @@ import { renameDisplayText } from "./display-labels";
 import type { Service, ServiceMedia } from "@prisma/client";
 import { prisma } from "./db";
 
-export type ServiceView = Omit<Service, "includes" | "stages" | "createdAt" | "updatedAt"> & {
+export type ServiceView = Omit<
+  Service,
+  "includes" | "stages" | "createdAt" | "updatedAt"
+> & {
   includes: string[];
   stages: string[];
   media: ServiceMediaView[];
 };
 
-export type ServiceMediaView = Pick<ServiceMedia, "id" | "type" | "path" | "sortOrder">;
+export type ServiceMediaView = Pick<
+  ServiceMedia,
+  "id" | "type" | "path" | "sortOrder"
+>;
 
 export function parseStringList(value: string) {
   try {
@@ -47,7 +53,9 @@ export async function getPublishedServices() {
   const services = await prisma.service.findMany({
     where: { isPublished: true },
     orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
-    include: { media: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] } },
+    include: {
+      media: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
+    },
   });
   return services.map(toServiceView);
 }
@@ -55,11 +63,18 @@ export async function getPublishedServices() {
 export async function getAllServices() {
   const services = await prisma.service.findMany({
     orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
-    include: { media: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] } },
+    include: {
+      media: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
+    },
   });
   return services.map(toServiceView);
 }
 
-export function getServiceBySlug(services: ServiceView[], slug: string | undefined) {
-  return slug ? services.find((service) => service.slug === slug) ?? null : null;
+export function getServiceBySlug(
+  services: ServiceView[],
+  slug: string | undefined,
+) {
+  return slug
+    ? (services.find((service) => service.slug === slug) ?? null)
+    : null;
 }

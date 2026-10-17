@@ -1,5 +1,7 @@
 "use client";
 import { readAdminResponse } from "@/lib/admin-fetch";
+import { AdminDocuments } from "./admin-documents";
+import { AdminAnalytics } from "./admin-analytics";
 import { AdminInvoices } from "./admin-invoices";
 import { AdminClients } from "./admin-clients";
 import { useRouter } from "next/navigation";
@@ -108,6 +110,8 @@ export function AdminConsole({
     | "integrations"
     | "billing"
     | "commerce"
+    | "documents"
+    | "analytics"
     | "invoices"
   >("services");
 
@@ -382,7 +386,9 @@ export function AdminConsole({
               ["clients", "Клиенты"],
               ["settings", "Настройки сайта"],
               ["integrations", "Интеграции"],
-              ["billing", "Тарифы и подписки"],
+              ["billing", "Товары и подписки"],
+              ["documents", "Документы"],
+              ["analytics", "Аналитика"],
               ["invoices", "Счета"],
               ["commerce", "Продажи и условия"],
             ] as const
@@ -402,6 +408,8 @@ export function AdminConsole({
 
         {activeSection === "integrations" ? <AdminIntegrations /> : null}
         {activeSection === "billing" ? <AdminBillingPlans /> : null}
+        {activeSection === "documents" ? <AdminDocuments /> : null}
+        {activeSection === "analytics" ? <AdminAnalytics /> : null}
         {activeSection === "commerce" ? <AdminCommerce /> : null}
 
         {activeSection === "services" ? (

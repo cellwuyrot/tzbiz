@@ -1,0 +1,25 @@
+{
+  "ok": true,
+  "checks": [
+    "document and analytics role/CSRF protection",
+    "generic product card, project and delivery terms, no internal-note leak",
+    "unsafe project URL and missing delivery terms rejected",
+    "card image upload, public visibility and revision audit",
+    "stale image update rejected",
+    "draft edit does not replace public legal document",
+    "owner confirmation and optimistic legal revision required",
+    "explicit consent stored in host-only HttpOnly cookie",
+    "no consent means no analytics write",
+    "consented public view increments only a path/day aggregate",
+    "DNT, GPC, foreign origins, private pages and query strings excluded",
+    "immutable archived legal revisions and escaped document text",
+    "new policy publication invalidates old analytics permission",
+    "outdated legal versions and absent offer acknowledgement rejected",
+    "cross-project order snapshots and idempotency without fabricated access",
+    "editing product does not rewrite past order conditions",
+    "checkout fails closed when mandatory legal publication is absent",
+    "withdrawal stops subsequent analytics writes",
+    "admin aggregate report and bounded date ranges",
+    "maintenance removes aggregates older than retention period"
+  ]
+}

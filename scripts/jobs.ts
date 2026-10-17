@@ -9,6 +9,13 @@ async function main() {
       where: { expiresAt: { lt: new Date(Date.now() - 3600_000) } },
     });
     await prisma.rateBucket.deleteMany({ where: { expiresAt: { lt: now } } });
+    await prisma.pageViewDaily.deleteMany({
+      where: {
+        day: {
+          lt: new Date(Date.now() - 180 * 86400000).toISOString().slice(0, 10),
+        },
+      },
+    });
     const n = await processMailBatch();
     await prisma.maintenanceState.upsert({
       where: { key: "mail-worker" },

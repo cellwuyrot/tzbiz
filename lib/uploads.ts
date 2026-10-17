@@ -18,9 +18,26 @@ const MEDIA_RULES = {
 export type MediaKind = (typeof MEDIA_RULES)[keyof typeof MEDIA_RULES]["kind"];
 
 function hasValidImageSignature(mime: string, buffer: Buffer) {
-  if (mime === "image/png") return buffer.length >= 8 && buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
-  if (mime === "image/jpeg") return buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
-  if (mime === "image/webp") return buffer.length >= 12 && buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP";
+  if (mime === "image/png")
+    return (
+      buffer.length >= 8 &&
+      buffer
+        .subarray(0, 8)
+        .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+    );
+  if (mime === "image/jpeg")
+    return (
+      buffer.length >= 3 &&
+      buffer[0] === 0xff &&
+      buffer[1] === 0xd8 &&
+      buffer[2] === 0xff
+    );
+  if (mime === "image/webp")
+    return (
+      buffer.length >= 12 &&
+      buffer.toString("ascii", 0, 4) === "RIFF" &&
+      buffer.toString("ascii", 8, 12) === "WEBP"
+    );
   return false;
 }
 
@@ -72,15 +89,22 @@ export async function saveUploadedMedia(file: File) {
 }
 
 export async function removeUpload(uploadPath: string) {
-  const match = /^\/api\/uploads\/([a-f0-9]{40})\.(png|jpg|webp|mp4|webm)$/.exec(uploadPath);
+  const match =
+    /^\/api\/uploads\/([a-f0-9]{40})\.(png|jpg|webp|mp4|webm)$/.exec(
+      uploadPath,
+    );
   if (!match) return;
-  await fs.unlink(path.join(UPLOADS_DIR, `${match[1]}.${match[2]}`)).catch(() => undefined);
+  await fs
+    .unlink(path.join(UPLOADS_DIR, `${match[1]}.${match[2]}`))
+    .catch(() => undefined);
 }
 
 export async function savePreview(file: File) {
   const rule = validateUploadFile(file);
   if (rule.kind !== "IMAGE") {
-    throw new Error("Превью проекта должно быть изображением PNG, JPEG или WebP.");
+    throw new Error(
+      "Превью проекта должно быть изображением PNG, JPEG или WebP.",
+    );
   }
   return saveUploadedMedia(file);
 }
@@ -95,10 +119,13 @@ export function uploadFilePath(filename: string) {
 export function mediaKindFromExtension(filename: string) {
   const extension = path.extname(filename).toLowerCase();
   if (extension === ".mp4" || extension === ".webm") return "VIDEO" as const;
-  if (extension === ".png" || extension === ".jpg" || extension === ".webp") return "IMAGE" as const;
+  if (extension === ".png" || extension === ".jpg" || extension === ".webp")
+    return "IMAGE" as const;
   return null;
 }
 
 export async function removeFiles(paths: string[]) {
-  await Promise.all(paths.map((item) => fs.unlink(item).catch(() => undefined)));
+  await Promise.all(
+    paths.map((item) => fs.unlink(item).catch(() => undefined)),
+  );
 }
