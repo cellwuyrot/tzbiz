@@ -1,6 +1,6 @@
 {
   "name": "trioz-services-portal",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -18,7 +18,11 @@
     "predev": "node scripts/prisma-sync.mjs && prisma generate && prisma migrate deploy",
     "db:setup": "node scripts/prisma-sync.mjs && prisma generate && prisma migrate deploy && node scripts/seed.mjs",
     "jobs:run": "tsx scripts/jobs.ts",
-    "test:integration": "tsx scripts/integration-check.ts"
+    "test:integration": "tsx scripts/integration-check.ts",
+    "launch:check": "tsx scripts/launch-check.ts",
+    "test:invoices": "node scripts/invoices-check.mjs",
+    "content:labels": "tsx scripts/rename-display-labels.ts",
+    "test:admin": "node scripts/admin-crud-check.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.16.0",

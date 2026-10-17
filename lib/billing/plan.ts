@@ -1,8 +1,9 @@
+import { renameDisplayText } from "../display-labels";
 import { z } from "zod";
 export const PLAN_KIND_LABELS = {
   SERVICE: "Услуга Business",
   PREMIUM: "Premium основного проекта",
-  VPN: "VPN основного проекта",
+  VPN: "Надёжное соединение",
 } as const;
 export const SETTLEMENT_LABELS = {
   NO_PREPAYMENT: "Без предоплаты",
@@ -86,7 +87,10 @@ export const planInputSchema = z
       plan.kind !== "SERVICE" &&
       (settlement !== "SUBSCRIPTION" || plan.mode !== "RECURRING")
     )
-      issue("kind", "Premium/VPN оформляются только как подписки TZ ID.");
+      issue(
+        "kind",
+        "Premium / «Надёжное соединение» оформляются только как подписки TZ ID.",
+      );
     if (plan.isPublished && plan.kind !== "SERVICE" && !plan.externalProductId)
       issue(
         "externalProductId",
@@ -95,7 +99,10 @@ export const planInputSchema = z
     if (plan.kind === "SERVICE" && !plan.serviceId)
       issue("serviceId", "Выберите существующую услугу.");
     if (plan.kind !== "SERVICE" && plan.serviceId)
-      issue("serviceId", "Premium/VPN не привязываются к локальной услуге.");
+      issue(
+        "serviceId",
+        "Premium / «Надёжное соединение» не привязываются к локальной услуге.",
+      );
     if (
       plan.mode === "RECURRING" &&
       (!plan.periodUnit || !plan.periodCount || plan.renewalTerms.length < 10)
@@ -165,8 +172,8 @@ export function publicPlan<
   return {
     id,
     kind,
-    title,
-    description,
+    title: renameDisplayText(title),
+    description: renameDisplayText(description),
     mode,
     settlementMode:
       settlementMode ?? (mode === "RECURRING" ? "SUBSCRIPTION" : "PREPAYMENT"),
@@ -174,8 +181,8 @@ export function publicPlan<
     currency,
     periodUnit,
     periodCount,
-    renewalTerms,
-    cancellationTerms,
+    renewalTerms: renameDisplayText(renewalTerms),
+    cancellationTerms: renameDisplayText(cancellationTerms),
     revision,
     service,
   };

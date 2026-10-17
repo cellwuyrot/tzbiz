@@ -1,3 +1,4 @@
+import { renameDisplayText } from "./display-labels";
 import type { Service, ServiceMedia } from "@prisma/client";
 import { prisma } from "./db";
 
@@ -29,11 +30,11 @@ export function toServiceView(
   return {
     id: service.id,
     slug: service.slug,
-    title: service.title,
-    shortDescription: service.shortDescription,
-    fullDescription: service.fullDescription,
-    includes: parseStringList(service.includes),
-    stages: parseStringList(service.stages),
+    title: renameDisplayText(service.title),
+    shortDescription: renameDisplayText(service.shortDescription),
+    fullDescription: renameDisplayText(service.fullDescription),
+    includes: parseStringList(service.includes).map(renameDisplayText),
+    stages: parseStringList(service.stages).map(renameDisplayText),
     sortOrder: service.sortOrder,
     isPublished: service.isPublished,
     media: [...(service.media ?? [])]

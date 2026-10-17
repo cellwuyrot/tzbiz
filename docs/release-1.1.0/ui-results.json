@@ -1,0 +1,115 @@
+{
+  "ok": true,
+  "results": [
+    {
+      "tab": "services",
+      "viewport": 1440,
+      "document": 1440
+    },
+    {
+      "tab": "projects",
+      "viewport": 1440,
+      "document": 1440
+    },
+    {
+      "tab": "leads",
+      "viewport": 1440,
+      "document": 1440
+    },
+    {
+      "tab": "clients",
+      "viewport": 1440,
+      "document": 1440
+    },
+    {
+      "tab": "settings",
+      "viewport": 1440,
+      "document": 1440
+    },
+    {
+      "tab": "integrations",
+      "viewport": 1440,
+      "document": 1440
+    },
+    {
+      "tab": "plans",
+      "viewport": 1440,
+      "document": 1440
+    },
+    {
+      "tab": "invoices",
+      "viewport": 1440,
+      "document": 1440
+    },
+    {
+      "tab": "commerce",
+      "viewport": 1440,
+      "document": 1440
+    },
+    {
+      "tab": "services",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "tab": "projects",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "tab": "leads",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "tab": "clients",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "tab": "settings",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "tab": "integrations",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "tab": "plans",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "tab": "invoices",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "tab": "commerce",
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "state": "integrations-error",
+      "status": 401,
+      "message": "Сессия завершилась. Войдите в аккаунт снова. Код обращения: QA-SAFE-ID"
+    },
+    {
+      "state": "integrations-error",
+      "status": 403,
+      "message": "Нет прав администратора Business. Проверьте назначение роли в TZ ID. Код обращения: QA-SAFE-ID"
+    },
+    {
+      "state": "integrations-error",
+      "status": 503,
+      "message": "База данных недоступна. Код обращения: QA-SAFE-ID"
+    },
+    {
+      "state": "error-recovery",
+      "ok": true
+    }
+  ],
+  "browserErrors": []
+}

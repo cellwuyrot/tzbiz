@@ -40,8 +40,10 @@ export function LeadForm({
     function choose(event: Event) {
       const slug = (event as CustomEvent<{ serviceSlug?: string }>).detail
         ?.serviceSlug;
-      if (slug && services.some((service) => service.slug === slug))
+      if (slug && services.some((service) => service.slug === slug)) {
+        setRequestKey("");
         setValues((previous) => ({ ...previous, serviceSlug: slug }));
+      }
     }
     window.addEventListener(REQUEST_SERVICE_EVENT, choose);
     return () => window.removeEventListener(REQUEST_SERVICE_EVENT, choose);

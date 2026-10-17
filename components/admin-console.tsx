@@ -1,4 +1,8 @@
 "use client";
+import { readAdminResponse } from "@/lib/admin-fetch";
+import { AdminInvoices } from "./admin-invoices";
+import { AdminClients } from "./admin-clients";
+import { useRouter } from "next/navigation";
 import { AdminCommerce } from "./admin-commerce";
 
 import { useMemo, useState } from "react";
@@ -42,8 +46,12 @@ async function csrfToken() {
 }
 
 async function readError(response: Response) {
-  const data = await response.json().catch(() => null);
-  return data?.error ?? "Операция не выполнена.";
+  try {
+    await readAdminResponse(response);
+    return "Операция не выполнена.";
+  } catch (e) {
+    return e instanceof Error ? e.message : "Операция не выполнена.";
+  }
 }
 
 function linesToList(value: string) {
@@ -81,7 +89,8 @@ export function AdminConsole({
   initialLeads: Lead[];
   initialSettings: SiteSettings;
 }) {
-  const [clients, setClients] = useState(initialClients);
+  const router = useRouter();
+  const clients = initialClients;
   const [projects, setProjects] = useState(initialProjects);
   const [services, setServices] = useState(initialServices);
   const [settings, setSettings] = useState(initialSettings);
@@ -99,21 +108,8 @@ export function AdminConsole({
     | "integrations"
     | "billing"
     | "commerce"
+    | "invoices"
   >("services");
-
-  const [creatingClient, setCreatingClient] = useState(false);
-  const [clientName, setClientName] = useState("");
-  const [clientEmail, setClientEmail] = useState("");
-  const [editingClient, setEditingClient] = useState<
-    Record<string, { name: string; email: string }>
-  >(
-    Object.fromEntries(
-      initialClients.map((client) => [
-        client.id,
-        { name: client.name, email: client.email },
-      ]),
-    ),
-  );
 
   const [serviceForm, setServiceForm] = useState(blankService);
   const [serviceFiles, setServiceFiles] = useState<File[]>([]);
@@ -130,129 +126,9 @@ export function AdminConsole({
     [projects, clientFilter, statusFilter],
   );
 
-  const latestLeadByEmail = useMemo(() => {
-    const map = new Map<string, Lead>();
-    for (const lead of leads) {
-      const current = map.get(lead.email.toLowerCase());
-      if (
-        !current ||
-        new Date(lead.createdAt).getTime() >
-          new Date(current.createdAt).getTime()
-      ) {
-        map.set(lead.email.toLowerCase(), lead);
-      }
-    }
-    return map;
-  }, [leads]);
-
   function resetMessages() {
     setNotice("");
     setError("");
-  }
-
-  async function createClient(event: React.FormEvent) {
-    event.preventDefault();
-    resetMessages();
-    setCreatingClient(true);
-    try {
-      const response = await fetch("/api/admin/clients", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-csrf-token": await csrfToken(),
-        },
-        body: JSON.stringify({ name: clientName, email: clientEmail }),
-      });
-      if (!response.ok) throw new Error(await readError(response));
-      const data = await response.json();
-      setClients((prev) => [data.client, ...prev]);
-      setEditingClient((prev) => ({
-        ...prev,
-        [data.client.id]: { name: data.client.name, email: data.client.email },
-      }));
-      setClientName("");
-      setClientEmail("");
-      setNotice(`Клиент создан. Временный пароль: ${data.temporaryPassword}`);
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Не удалось создать клиента.",
-      );
-    } finally {
-      setCreatingClient(false);
-    }
-  }
-
-  async function updateClient(id: string) {
-    resetMessages();
-    const value = editingClient[id];
-    if (!value) return;
-    try {
-      const response = await fetch(`/api/admin/clients/${id}`, {
-        method: "PATCH",
-        headers: {
-          "content-type": "application/json",
-          "x-csrf-token": await csrfToken(),
-        },
-        body: JSON.stringify(value),
-      });
-      if (!response.ok) throw new Error(await readError(response));
-      const data = await response.json();
-      setClients((prev) =>
-        prev.map((client) => (client.id === id ? data.client : client)),
-      );
-      setNotice("Данные клиента обновлены.");
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Не удалось обновить клиента.",
-      );
-    }
-  }
-
-  async function resetClientPassword(id: string) {
-    resetMessages();
-    try {
-      const response = await fetch(`/api/admin/clients/${id}/reset-password`, {
-        method: "POST",
-        headers: { "x-csrf-token": await csrfToken() },
-      });
-      if (!response.ok) throw new Error(await readError(response));
-      const data = await response.json();
-      setNotice(`Новый временный пароль: ${data.temporaryPassword}`);
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Не удалось сбросить пароль.",
-      );
-    }
-  }
-
-  async function deleteClient(id: string) {
-    if (
-      !window.confirm(
-        "Удалить клиента? Назначенные проекты останутся, но потеряют привязку к клиенту.",
-      )
-    )
-      return;
-    resetMessages();
-    try {
-      const response = await fetch(`/api/admin/clients/${id}`, {
-        method: "DELETE",
-        headers: { "x-csrf-token": await csrfToken() },
-      });
-      if (!response.ok) throw new Error(await readError(response));
-      setClients((prev) => prev.filter((client) => client.id !== id));
-      setProjects((prev) =>
-        prev.map((project) =>
-          project.clientId === id
-            ? { ...project, clientId: null, client: null }
-            : project,
-        ),
-      );
-      setNotice("Клиент удалён.");
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Не удалось удалить клиента.",
-      );
-    }
   }
 
   async function deleteProject(id: string) {
@@ -460,29 +336,21 @@ export function AdminConsole({
 
   return (
     <>
-      <header className="border-b border-border bg-panel">
+      <header className="admin-header border-b border-border bg-panel">
         <div className="site-shell flex min-h-20 items-center justify-between gap-4 py-4">
           <div className="flex items-center gap-3">
             <LogoMark />
             <div>
               <p className="brand-mark text-text">TRIOZ / ADMIN</p>
-              <p className="type-ui text-subtle">
-                Управление контентом и доступами
-              </p>
             </div>
           </div>
           <LogoutButton />
         </div>
       </header>
 
-      <section className="site-shell py-10 sm:py-14">
+      <section className="site-shell admin-shell py-10 sm:py-14">
         <div>
-          <p className="eyebrow">Control / Console</p>
           <h1 className="type-h2 mt-3 text-text">Админ-панель</h1>
-          <p className="mt-4 max-w-2xl type-lead text-muted">
-            Управляйте услугами, настройками сайта, реализованными проектами и
-            клиентским доступом.
-          </p>
         </div>
 
         {notice ? (
@@ -515,6 +383,7 @@ export function AdminConsole({
               ["settings", "Настройки сайта"],
               ["integrations", "Интеграции"],
               ["billing", "Тарифы и подписки"],
+              ["invoices", "Счета"],
               ["commerce", "Продажи и условия"],
             ] as const
           ).map(([id, label]) => (
@@ -537,18 +406,14 @@ export function AdminConsole({
 
         {activeSection === "services" ? (
           <section
-            className="mt-10 grid gap-8 xl:grid-cols-[0.7fr_1.3fr]"
+            className="mt-10 grid gap-8 xl:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]"
             aria-labelledby="services-admin-title"
           >
             <div>
-              <p className="eyebrow">01 / Services</p>
               <h2 id="services-admin-title" className="type-h2 mt-2 text-text">
                 Услуги
               </h2>
-              <p className="mt-4 type-body text-muted">
-                Здесь — содержание услуг. Без предоплаты, с предоплатой и
-                подписки настраиваются отдельными предложениями.
-              </p>
+
               <button
                 type="button"
                 className="button-secondary mt-4"
@@ -556,10 +421,6 @@ export function AdminConsole({
               >
                 Настроить тарифы и режим оплаты →
               </button>
-              <p className="mt-4 type-body text-muted">
-                CRUD, публикация, ручная сортировка и несколько
-                изображений/видео на одну услугу.
-              </p>
             </div>
 
             <div className="space-y-5">
@@ -587,10 +448,6 @@ export function AdminConsole({
                       setServiceFiles(Array.from(event.target.files ?? []))
                     }
                   />
-                  <p className="mt-2 type-body text-subtle">
-                    Изображения до 5 МБ, видео до 50 МБ. MIME и расширение
-                    проверяются на сервере.
-                  </p>
                 </div>
                 <button
                   type="submit"
@@ -617,19 +474,13 @@ export function AdminConsole({
 
         {activeSection === "projects" ? (
           <section
-            className="mt-10 grid gap-8 xl:grid-cols-[0.7fr_1.3fr]"
+            className="mt-10 grid gap-8 xl:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]"
             aria-labelledby="projects-admin-title"
           >
             <div>
-              <p className="eyebrow">02 / Projects</p>
               <h2 id="projects-admin-title" className="type-h2 mt-2 text-text">
                 Проекты
               </h2>
-              <p className="mt-4 type-body text-muted">
-                Публикация в слайдере управляется переключателем «Показывать
-                публично». Нажатие на изображение в лендинге открывает внешний
-                URL проекта.
-              </p>
             </div>
 
             <div className="space-y-5">
@@ -699,17 +550,11 @@ export function AdminConsole({
 
         {activeSection === "leads" ? (
           <section className="mt-10" aria-labelledby="leads-title">
-            <div className="grid gap-8 xl:grid-cols-[0.7fr_1.3fr]">
+            <div className="grid gap-8 xl:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
               <div>
-                <p className="eyebrow">03 / Lead requests</p>
                 <h2 id="leads-title" className="type-h2 mt-2 text-text">
                   Заявки клиентов
                 </h2>
-                <p className="mt-4 type-body text-muted">
-                  Здесь в одной строке видны контактные данные клиента,
-                  выбранная услуга и особенности проекта. Новые заявки
-                  сохраняются в БД и отправляют уведомление на info@trioz.ru.
-                </p>
               </div>
             </div>
             <div className="mt-8">
@@ -722,266 +567,22 @@ export function AdminConsole({
           </section>
         ) : null}
 
+        {activeSection === "invoices" ? (
+          <AdminInvoices clients={clients} />
+        ) : null}
         {activeSection === "clients" ? (
-          <section
-            className="mt-10 grid gap-8 xl:grid-cols-[0.7fr_1.3fr]"
-            aria-labelledby="clients-title"
-          >
-            <div>
-              <p className="eyebrow">04 / Clients</p>
-              <h2 id="clients-title" className="type-h2 mt-2 text-text">
-                Клиенты
-              </h2>
-              <p className="mt-4 type-body text-muted">
-                Учетные записи и доступ к назначенным проектам. Для каждого
-                клиента ниже также показана последняя заявка по совпадению
-                email: телефон, компания, услуга и комментарий.
-              </p>
-            </div>
-            <div className="space-y-6">
-              <form onSubmit={createClient} className="panel space-y-4 p-6">
-                <div>
-                  <label
-                    className="mb-2 block type-ui font-semibold text-text"
-                    htmlFor="new-client-name"
-                  >
-                    Имя
-                  </label>
-                  <input
-                    id="new-client-name"
-                    className="field"
-                    required
-                    maxLength={120}
-                    value={clientName}
-                    onChange={(e) => setClientName(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label
-                    className="mb-2 block type-ui font-semibold text-text"
-                    htmlFor="new-client-email"
-                  >
-                    Email
-                  </label>
-                  <input
-                    id="new-client-email"
-                    className="field"
-                    required
-                    type="email"
-                    maxLength={254}
-                    value={clientEmail}
-                    onChange={(e) => setClientEmail(e.target.value)}
-                  />
-                </div>
-                <button
-                  className="button-primary w-full"
-                  type="submit"
-                  disabled={creatingClient}
-                >
-                  {creatingClient ? "Создание…" : "Создать клиента"}
-                </button>
-              </form>
-
-              {clients.length === 0 ? (
-                <div className="panel p-5 type-body text-muted">
-                  Клиентов пока нет.
-                </div>
-              ) : (
-                <div className="overflow-hidden rounded-3xl border border-border bg-panel">
-                  <div className="overflow-x-auto">
-                    <table className="min-w-[1560px] w-full border-collapse text-left">
-                      <thead className="bg-panel-2">
-                        <tr>
-                          <th
-                            scope="col"
-                            className="border-b border-border px-5 py-4 type-ui font-semibold text-muted"
-                          >
-                            Клиент
-                          </th>
-                          <th
-                            scope="col"
-                            className="border-b border-border px-5 py-4 type-ui font-semibold text-muted"
-                          >
-                            Email
-                          </th>
-                          <th
-                            scope="col"
-                            className="border-b border-border px-5 py-4 type-ui font-semibold text-muted"
-                          >
-                            Телефон / компания
-                          </th>
-                          <th
-                            scope="col"
-                            className="border-b border-border px-5 py-4 type-ui font-semibold text-muted"
-                          >
-                            Услуга
-                          </th>
-                          <th
-                            scope="col"
-                            className="border-b border-border px-5 py-4 type-ui font-semibold text-muted"
-                          >
-                            Особенности / комментарий
-                          </th>
-                          <th
-                            scope="col"
-                            className="border-b border-border px-5 py-4 type-ui font-semibold text-muted"
-                          >
-                            Создан
-                          </th>
-                          <th
-                            scope="col"
-                            className="border-b border-border px-5 py-4 type-ui font-semibold text-muted"
-                          >
-                            Действия
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {clients.map((client) => (
-                          <tr
-                            key={client.id}
-                            className="align-top hover:bg-accent-soft/30"
-                          >
-                            <td className="border-b border-border px-5 py-5">
-                              <label
-                                className="sr-only"
-                                htmlFor={`name-${client.id}`}
-                              >
-                                Имя клиента
-                              </label>
-                              <input
-                                id={`name-${client.id}`}
-                                className="field min-w-48"
-                                value={editingClient[client.id]?.name ?? ""}
-                                onChange={(e) =>
-                                  setEditingClient((prev) => ({
-                                    ...prev,
-                                    [client.id]: {
-                                      ...(prev[client.id] ?? {
-                                        email: client.email,
-                                      }),
-                                      name: e.target.value,
-                                    },
-                                  }))
-                                }
-                              />
-                            </td>
-                            <td className="border-b border-border px-5 py-5">
-                              <label
-                                className="sr-only"
-                                htmlFor={`email-${client.id}`}
-                              >
-                                Email клиента
-                              </label>
-                              <input
-                                id={`email-${client.id}`}
-                                className="field min-w-56"
-                                type="email"
-                                value={editingClient[client.id]?.email ?? ""}
-                                onChange={(e) =>
-                                  setEditingClient((prev) => ({
-                                    ...prev,
-                                    [client.id]: {
-                                      ...(prev[client.id] ?? {
-                                        name: client.name,
-                                      }),
-                                      email: e.target.value,
-                                    },
-                                  }))
-                                }
-                              />
-                            </td>
-                            <td className="border-b border-border px-5 py-5 type-body text-muted">
-                              {latestLeadByEmail.get(
-                                client.email.toLowerCase(),
-                              ) ? (
-                                <>
-                                  <div>
-                                    {latestLeadByEmail.get(
-                                      client.email.toLowerCase(),
-                                    )?.phone || "Телефон не указан"}
-                                  </div>
-                                  <div className="mt-1 type-ui text-subtle">
-                                    {latestLeadByEmail.get(
-                                      client.email.toLowerCase(),
-                                    )?.company || "Компания не указана"}
-                                  </div>
-                                </>
-                              ) : (
-                                <span className="text-subtle">Нет заявки</span>
-                              )}
-                            </td>
-                            <td className="border-b border-border px-5 py-5 type-body text-text">
-                              {latestLeadByEmail.get(client.email.toLowerCase())
-                                ?.service?.title ??
-                                latestLeadByEmail.get(
-                                  client.email.toLowerCase(),
-                                )?.serviceTitle ?? (
-                                  <span className="text-subtle">—</span>
-                                )}
-                            </td>
-                            <td className="border-b border-border px-5 py-5 min-w-[420px] type-body text-muted whitespace-pre-wrap">
-                              {latestLeadByEmail.get(client.email.toLowerCase())
-                                ?.message ?? (
-                                <span className="text-subtle">
-                                  Комментариев нет
-                                </span>
-                              )}
-                            </td>
-                            <td className="border-b border-border px-5 py-5 type-ui text-subtle whitespace-nowrap">
-                              {new Date(client.createdAt).toLocaleString(
-                                "ru-RU",
-                              )}
-                            </td>
-                            <td className="border-b border-border px-5 py-5">
-                              <div className="flex flex-wrap gap-2">
-                                <button
-                                  className="button-secondary"
-                                  type="button"
-                                  onClick={() => updateClient(client.id)}
-                                >
-                                  Сохранить
-                                </button>
-                                <button
-                                  className="button-secondary"
-                                  type="button"
-                                  onClick={() => resetClientPassword(client.id)}
-                                >
-                                  Сбросить пароль
-                                </button>
-                                <button
-                                  className="button-secondary text-danger"
-                                  type="button"
-                                  onClick={() => deleteClient(client.id)}
-                                >
-                                  Удалить
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
+          <AdminClients onUpdated={() => router.refresh()} />
         ) : null}
 
         {activeSection === "settings" ? (
           <section
-            className="mt-10 grid gap-8 xl:grid-cols-[0.7fr_1.3fr]"
+            className="mt-10 grid gap-8 xl:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]"
             aria-labelledby="settings-title"
           >
             <div>
-              <p className="eyebrow">05 / Site settings</p>
               <h2 id="settings-title" className="type-h2 mt-2 text-text">
                 Настройки сайта
               </h2>
-              <p className="mt-4 type-body text-muted">
-                Девиз и весь текст первого экрана читаются лендингом из БД.
-              </p>
             </div>
             <form onSubmit={saveSettings} className="panel space-y-5 p-6">
               {(
@@ -1011,7 +612,7 @@ export function AdminConsole({
                     "Телефон, email, ссылка или любой необходимый контактный текст.",
                   ],
                 ] as const
-              ).map(([key, label, value, hint]) => (
+              ).map(([key, label, value]) => (
                 <div key={key}>
                   <label
                     className="mb-2 block type-ui font-semibold text-text"
@@ -1046,7 +647,6 @@ export function AdminConsole({
                       }
                     />
                   )}
-                  <p className="mt-2 type-body text-subtle">{hint}</p>
                 </div>
               ))}
               <button

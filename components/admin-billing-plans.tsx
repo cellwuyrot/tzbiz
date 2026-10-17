@@ -1,4 +1,6 @@
 "use client";
+import { renameDisplayText } from "@/lib/display-labels";
+import { readAdminResponse } from "@/lib/admin-fetch";
 import { useCallback, useEffect, useState } from "react";
 import {
   PLAN_KIND_LABELS,
@@ -62,15 +64,19 @@ export function AdminBillingPlans() {
     [filter, setFilter] = useState("ALL");
   const refresh = useCallback(async () => {
     const r = await fetch("/api/admin/billing/plans", { cache: "no-store" });
-    const d = await r.json();
-    if (!r.ok) throw Error(d.error);
+    const d = await readAdminResponse<{
+      plans: Saved[];
+      services: { id: string; title: string; isPublished: boolean }[];
+    }>(r);
     setPlans(d.plans);
     setServices(d.services);
   }, []);
   useEffect(() => {
-    refresh().catch(() =>
+    refresh().catch((cause) =>
       setError(
-        "Не удалось загрузить предложения. Проверьте миграции и доступ.",
+        cause instanceof Error
+          ? cause.message
+          : "Не удалось загрузить предложения.",
       ),
     );
   }, [refresh]);
@@ -145,14 +151,9 @@ export function AdminBillingPlans() {
     <section className="mt-8 space-y-6" aria-labelledby="billing-title">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="eyebrow">Продажи / Предложения</p>
           <h2 id="billing-title" className="type-h2 mt-2">
             Тарифы и подписки
           </h2>
-          <p className="mt-3 max-w-2xl type-body text-muted">
-            Описание продаёт услугу. Режим определяет путь клиента. Привязка к
-            TZ ID определяет продукт, а не его название на витрине.
-          </p>
         </div>
         <a
           className="button-secondary"
@@ -175,12 +176,6 @@ export function AdminBillingPlans() {
             </p>
           </div>
         ))}
-      </div>
-      <div className="panel border-l-4 border-accent p-5 type-body text-muted">
-        Premium/VPN используют существующий продукт TZ ID. Название и описание
-        можно менять здесь, но цена списания и доступ должны подтверждаться
-        центральным биллингом. Пока его контракт не подключён, автоматическая
-        покупка и выдача отключены.
       </div>
       {error && (
         <p role="alert" className="panel p-4 text-danger">
@@ -278,10 +273,6 @@ export function AdminBillingPlans() {
                 onChange={(e) => field("externalProductId", e.target.value)}
                 placeholder="Точное значение из платформы"
               />
-              <span className="mt-2 block text-subtle">
-                Не название и не email. Не придумывайте ID; он потребуется
-                адаптеру центрального биллинга.
-              </span>
             </label>
           )}
           <label className="type-ui">
@@ -367,10 +358,6 @@ export function AdminBillingPlans() {
               value={form.renewalTerms}
               onChange={(e) => field("renewalTerms", e.target.value)}
             />
-            <span className="mt-2 block text-subtle">
-              Укажите фактические условия TZ ID. Публикация не создаёт
-              банковское согласие на автосписания.
-            </span>
           </label>
         )}
         <label className="block type-ui">
@@ -457,7 +444,9 @@ export function AdminBillingPlans() {
                 {PLAN_KIND_LABELS[p.kind]} ·{" "}
                 {SETTLEMENT_LABELS[p.settlementMode]}
               </p>
-              <h3 className="type-h3 break-words">{p.title}</h3>
+              <h3 className="type-h3 break-words">
+                {renameDisplayText(p.title)}
+              </h3>
               <p className="type-lead">
                 {p.amountMinor === null
                   ? "По согласованию"
@@ -485,10 +474,7 @@ export function AdminBillingPlans() {
           ))}
       </div>
       {!plans.length && (
-        <p className="type-body text-muted">
-          Создайте первое предложение. Тарифы Premium/VPN не создаются с
-          выдуманными ценами автоматически.
-        </p>
+        <p className="panel p-5 type-body text-muted">Предложений пока нет.</p>
       )}
     </section>
   );

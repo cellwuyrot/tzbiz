@@ -1,0 +1,10 @@
+{
+  "passed": 5,
+  "checks": [
+    "client create, edit and password reset",
+    "project create, status edit and deletion with uploaded preview",
+    "service creation, media reorder, media deletion and service deletion",
+    "site settings save and restore",
+    "client without financial history can be deleted"
+  ]
+}

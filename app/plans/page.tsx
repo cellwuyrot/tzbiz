@@ -1,3 +1,4 @@
+import { renameDisplayText } from "@/lib/display-labels";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Услуги и подписки",
   description:
-    "Выберите формат работы: услуга без предоплаты, с предоплатой или предложение подписки Premium/VPN TZ ID.",
+    "Выберите формат работы: услуга без предоплаты, с предоплатой или предложение подписки Premium / «Надёжное соединение» TZ ID.",
   alternates: { canonical: "/plans" },
 };
 export default async function Plans({
@@ -50,8 +51,8 @@ export default async function Plans({
         <div className="panel flex flex-wrap items-center justify-between gap-5 p-6">
           <p className="max-w-3xl type-body text-muted">
             Онлайн-оплата пока не подключена. Заявка на тариф не списывает
-            деньги и не выдаёт подписку. Условия Premium/VPN должны быть
-            подтверждены биллингом TZ ID.
+            деньги и не выдаёт подписку. Условия Premium / «Надёжное соединение»
+            должны быть подтверждены биллингом TZ ID.
           </p>
           <Link href="/payment" className="button-secondary">
             Как оформить и оплатить
@@ -81,7 +82,9 @@ export default async function Plans({
                   {PLAN_KIND_LABELS[p.kind as keyof typeof PLAN_KIND_LABELS]}
                 </span>
               </div>
-              <h2 className="type-h3 break-words">{p.title}</h2>
+              <h2 className="type-h3 break-words">
+                {renameDisplayText(p.title)}
+              </h2>
               <p className="type-h2">
                 {p.amountMinor === null
                   ? "По согласованию"
@@ -97,13 +100,13 @@ export default async function Plans({
                 </p>
               )}
               <p className="type-body whitespace-pre-wrap break-words text-muted">
-                {p.description}
+                {renameDisplayText(p.description)}
               </p>
               <p className="type-ui text-subtle">
                 {p.settlementMode === "NO_PREPAYMENT"
                   ? "Без предоплаты — не значит бесплатно. Стоимость и расчёт согласуются до начала работ."
                   : p.settlementMode === "SUBSCRIPTION"
-                    ? "Заявка не активирует Premium/VPN. Автоматические списания недоступны."
+                    ? "Заявка не активирует Premium / «Надёжное соединение». Автоматические списания недоступны."
                     : "Сначала согласование и счёт. Доступ не предоставляется по одному факту заявки."}
               </p>
               <div className="mt-auto pt-3">

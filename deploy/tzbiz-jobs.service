@@ -1,0 +1,16 @@
+[Unit]
+Description=TRIOZ Business mail queue and maintenance
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=tzbiz
+Group=tzbiz
+WorkingDirectory=/var/www/tzbiz
+Environment=NODE_ENV=production
+EnvironmentFile=/var/www/tzbiz/.env
+ExecStart=/usr/bin/env npm run jobs:run
+NoNewPrivileges=true
+PrivateTmp=true
+TimeoutStartSec=900

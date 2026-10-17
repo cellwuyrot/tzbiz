@@ -1,3 +1,4 @@
+import { diagnosticResponse } from "@/lib/diagnostics";
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api-auth";
 import { prisma } from "@/lib/db";
@@ -18,11 +19,33 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (!parsed.success) return jsonError("Проверьте имя и email.", 400);
 
   try {
-    const client = await prisma.user.update({ where: { id, role: "CLIENT" }, data: { name: parsed.data.name, email: parsed.data.email }, select: { id: true, email: true, name: true, role: true, createdAt: true } });
+    const client = await prisma.user.update({
+      where: { id, role: "CLIENT" },
+      data: { name: parsed.data.name, email: parsed.data.email },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        createdAt: true,
+      },
+    });
     return NextResponse.json({ client });
   } catch (error) {
-    if (error && typeof error === "object" && "code" in error && error.code === "P2002") return jsonError("Пользователь с таким email уже существует.", 409);
-    if (error && typeof error === "object" && "code" in error && error.code === "P2025") return jsonError("Клиент не найден.", 404);
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "P2002"
+    )
+      return jsonError("Пользователь с таким email уже существует.", 409);
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "P2025"
+    )
+      return jsonError("Клиент не найден.", 404);
     throw error;
   }
 }
@@ -32,9 +55,31 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   if (auth.response) return auth.response;
   if (!verifyCsrf(request)) return jsonError("Неверный CSRF-токен.", 403);
   const { id } = await params;
-  await prisma.user.delete({ where: { id, role: "CLIENT" } }).catch((error) => {
-    if (error && typeof error === "object" && "code" in error && error.code === "P2025") return undefined;
-    throw error;
-  });
+  try {
+    await prisma.user
+      .delete({ where: { id, role: "CLIENT" } })
+      .catch((error) => {
+        if (
+          error &&
+          typeof error === "object" &&
+          "code" in error &&
+          error.code === "P2025"
+        )
+          return undefined;
+        throw error;
+      });
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "P2003"
+    )
+      return jsonError(
+        "Нельзя удалить клиента с историей счетов или тарифных заявок. Сохраните аккаунт и финансовую историю.",
+        409,
+      );
+    return diagnosticResponse("clients.delete", error);
+  }
   return NextResponse.json({ ok: true });
 }

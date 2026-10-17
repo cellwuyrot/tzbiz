@@ -1,3 +1,4 @@
+import { renameDisplayText } from "@/lib/display-labels";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -16,9 +17,9 @@ export async function generateMetadata({
   const { id } = await params;
   const p = await prisma.billingPlan.findUnique({ where: { id } });
   return {
-    title: p?.isPublished && !p.isArchived ? p.title : "Предложение",
+    title: p?.isPublished && !p.isArchived ? renameDisplayText(p.title) : "Предложение",
     alternates: { canonical: `/plans/${id}` },
-    description: p?.description.slice(0, 160),
+    description: p ? renameDisplayText(p.description).slice(0,160) : undefined,
     robots: { index: true, follow: true },
   };
 }
@@ -58,7 +59,7 @@ export default async function Plan({
               ]
             }
           </p>
-          <h1 className="type-h2 break-words">{plan.title}</h1>
+          <h1 className="type-h2 break-words">{renameDisplayText(plan.title)}</h1>
           <p className="type-h3">
             {plan.amountMinor === null
               ? "Стоимость согласуем"
@@ -74,20 +75,20 @@ export default async function Plan({
             </p>
           ) : null}
           <p className="type-body whitespace-pre-wrap text-muted">
-            {plan.description}
+            {renameDisplayText(plan.description)}
           </p>
           {plan.renewalTerms && (
             <div>
               <h2 className="type-h3">Продление</h2>
               <p className="type-body mt-3 whitespace-pre-wrap text-muted">
-                {plan.renewalTerms}
+                {renameDisplayText(plan.renewalTerms)}
               </p>
             </div>
           )}
           <div>
             <h2 className="type-h3">Отмена и возврат</h2>
             <p className="type-body mt-3 whitespace-pre-wrap text-muted">
-              {plan.cancellationTerms}
+              {renameDisplayText(plan.cancellationTerms)}
             </p>
           </div>
           <p className="type-ui text-subtle">

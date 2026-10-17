@@ -1,7 +1,15 @@
 "use client";
+import { renameDisplayText } from "@/lib/display-labels";
+import { adminFetch } from "@/lib/admin-fetch";
 import { useCallback, useEffect, useState } from "react";
 import { ORDER_STATUS, canTransition } from "@/lib/commerce-client";
 type Settings = {
+  sellerInn: string;
+  sellerKpp: string;
+  bankName: string;
+  bankBik: string;
+  bankAccount: string;
+  bankCorrespondentAccount: string;
   sellerName: string;
   sellerDetails: string;
   supportEmail: string;
@@ -12,6 +20,12 @@ type Settings = {
   revision: number;
 };
 const empty: Settings = {
+  sellerInn: "",
+  sellerKpp: "",
+  bankName: "",
+  bankBik: "",
+  bankAccount: "",
+  bankCorrespondentAccount: "",
   sellerName: "",
   sellerDetails: "",
   supportEmail: "info@trioz.ru",
@@ -23,6 +37,7 @@ const empty: Settings = {
 };
 type Order = {
   id: string;
+  paymentConfirmed: boolean;
   title: string;
   settlementMode: string;
   amountMinor: number | null;
@@ -41,15 +56,21 @@ export function AdminCommerce() {
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false),
     [filter, setFilter] = useState("ALL");
+  const [page, setPage] = useState(1),
+    [total, setTotal] = useState(0),
+    [query, setQuery] = useState(""),
+    [q, setQ] = useState("");
   const load = useCallback(async () => {
     const [s, o] = await Promise.all([
-      fetch("/api/admin/commerce", { cache: "no-store" }),
-      fetch("/api/admin/orders", { cache: "no-store" }),
+      adminFetch<{ settings: Settings | null }>("/api/admin/commerce"),
+      adminFetch<{ orders: Order[]; total: number }>(
+        `/api/admin/orders?page=${page}&q=${encodeURIComponent(q)}&status=${filter}`,
+      ),
     ]);
-    if (!s.ok || !o.ok) throw Error("Не удалось загрузить данные продаж.");
-    setForm((await s.json()).settings || empty);
-    setOrders((await o.json()).orders);
-  }, []);
+    setForm(s.settings || empty);
+    setOrders(o.orders);
+    setTotal(o.total);
+  }, [page, q, filter]);
   useEffect(() => {
     load().catch((e) => setError(e.message));
   }, [load]);
@@ -79,12 +100,7 @@ export function AdminCommerce() {
   return (
     <section className="mt-8 space-y-8">
       <div>
-        <p className="eyebrow">Продажи / Заявки и условия</p>
         <h2 className="type-h2 mt-2">Контроль оформления</h2>
-        <p className="mt-3 max-w-3xl type-body text-muted">
-          Здесь — заявки на конкретные тарифы, не подтверждённые банковские
-          платежи. Premium/VPN не активируются изменением статуса.
-        </p>
       </div>
       {error && (
         <p role="alert" className="panel p-4 text-danger">
@@ -108,15 +124,15 @@ export function AdminCommerce() {
           }}
           className="mt-6 grid gap-5"
         >
-          <p className="type-body text-muted">
-            Заполните фактические условия. Утверждение открывает оформление
-            заявок на тарифы, но не включает эквайринг. Соглашение и политику
-            персональных данных нужно отдельно утвердить с профильным
-            специалистом.
-          </p>
           {(
             [
               ["sellerName", "Полное наименование продавца"],
+              ["sellerInn", "ИНН продавца"],
+              ["sellerKpp", "КПП продавца"],
+              ["bankName", "Банк получателя"],
+              ["bankBik", "БИК"],
+              ["bankAccount", "Расчётный счёт"],
+              ["bankCorrespondentAccount", "Корреспондентский счёт"],
               ["sellerDetails", "Реквизиты и адрес"],
               ["supportEmail", "Email для обращений"],
               ["paymentInstructions", "Порядок оплаты / выставления счёта"],
@@ -126,11 +142,38 @@ export function AdminCommerce() {
           ).map(([key, label]) => (
             <label key={key} className="block type-ui">
               {label}
-              {key === "supportEmail" ? (
+              {![
+                "sellerDetails",
+                "paymentInstructions",
+                "fulfillmentTerms",
+                "refundTerms",
+              ].includes(key) ? (
                 <input
-                  type="email"
+                  type={key === "supportEmail" ? "email" : "text"}
+                  inputMode={
+                    [
+                      "sellerInn",
+                      "sellerKpp",
+                      "bankBik",
+                      "bankAccount",
+                      "bankCorrespondentAccount",
+                    ].includes(key)
+                      ? "numeric"
+                      : undefined
+                  }
+                  maxLength={
+                    key === "sellerName" || key === "bankName"
+                      ? 300
+                      : key === "supportEmail"
+                        ? 254
+                        : key === "sellerInn"
+                          ? 12
+                          : key === "sellerKpp" || key === "bankBik"
+                            ? 9
+                            : 20
+                  }
                   className="field mt-2"
-                  required
+                  required={key === "supportEmail"}
                   value={form[key]}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, [key]: e.target.value }))
@@ -183,7 +226,10 @@ export function AdminCommerce() {
           <select
             className="field mt-2"
             value={filter}
-            onChange={(e) => setFilter(e.target.value)}
+            onChange={(e) => {
+              setPage(1);
+              setFilter(e.target.value);
+            }}
           >
             <option value="ALL">Все</option>
             {Object.entries(ORDER_STATUS).map(([k, v]) => (
@@ -194,6 +240,32 @@ export function AdminCommerce() {
           </select>
         </label>
       </div>
+      <form
+        className="admin-toolbar"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setPage(1);
+          setQ(query);
+        }}
+      >
+        <input
+          className="field"
+          aria-label="Поиск тарифных заявок"
+          placeholder="Клиент или услуга"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <button className="button-secondary" type="submit">
+          Найти
+        </button>
+        <button
+          className="button-secondary"
+          type="button"
+          onClick={() => load().catch((e) => setError(e.message))}
+        >
+          Обновить
+        </button>
+      </form>
       <div className="grid gap-4 lg:grid-cols-2">
         {orders
           .filter((o) => filter === "ALL" || o.status === filter)
@@ -205,7 +277,9 @@ export function AdminCommerce() {
                   {new Date(o.createdAt).toLocaleDateString("ru-RU")}
                 </span>
               </div>
-              <h4 className="type-h3 break-words">{o.title}</h4>
+              <h4 className="type-h3 break-words">
+                {renameDisplayText(o.title)}
+              </h4>
               <p className="type-ui text-muted break-words">
                 {o.user.name} · {o.user.email}
               </p>
@@ -239,7 +313,12 @@ export function AdminCommerce() {
                     .filter(
                       ([k]) =>
                         k === o.status ||
-                        canTransition(o.settlementMode, o.status, k),
+                        canTransition(
+                          o.settlementMode,
+                          o.status,
+                          k,
+                          o.paymentConfirmed,
+                        ),
                     )
                     .map(([k, v]) => (
                       <option key={k} value={k}>
@@ -253,10 +332,28 @@ export function AdminCommerce() {
       </div>
       {!orders.length && (
         <div className="panel p-8 type-body text-muted">
-          Заявок на тарифы пока нет. Они появятся после настройки условий и
-          публикации предложений.
+          Заявки на тарифы не найдены.
         </div>
       )}
+      <div className="admin-toolbar">
+        <button
+          className="button-secondary"
+          disabled={page === 1 || busy}
+          onClick={() => setPage(page - 1)}
+        >
+          Назад
+        </button>
+        <span className="type-ui">
+          Страница {page} из {Math.max(1, Math.ceil(total / 20))}
+        </span>
+        <button
+          className="button-secondary"
+          disabled={page * 20 >= total || busy}
+          onClick={() => setPage(page + 1)}
+        >
+          Далее
+        </button>
+      </div>
     </section>
   );
 }

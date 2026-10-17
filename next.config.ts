@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   async headers() {
     return [
+      { source: "/api/:path*", headers: [{ key: "Cache-Control", value: "private, no-store" }] },
+      { source: "/invoices/:path*", headers: noIndexHeaders },
       { source: "/enter", headers: noIndexHeaders },
       { source: "/admin/:path*", headers: noIndexHeaders },
     ];

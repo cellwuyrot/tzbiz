@@ -10,6 +10,11 @@ async function main() {
     });
     await prisma.rateBucket.deleteMany({ where: { expiresAt: { lt: now } } });
     const n = await processMailBatch();
+    await prisma.maintenanceState.upsert({
+      where: { key: "mail-worker" },
+      create: { key: "mail-worker", lastSuccessAt: new Date() },
+      update: { lastSuccessAt: new Date() },
+    });
     console.log(`Maintenance complete; considered ${n} mail jobs.`);
   } finally {
     await prisma.$disconnect();
