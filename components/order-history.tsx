@@ -1,3 +1,4 @@
+import { renameDisplayText } from "@/lib/display-labels";
 import Link from "next/link";
 import { ORDER_STATUS } from "@/lib/commerce-client";
 import type { BusinessOrder } from "@prisma/client";
@@ -31,7 +32,7 @@ export function OrderHistory({ orders }: { orders: BusinessOrder[] }) {
                 {ORDER_STATUS[o.status as keyof typeof ORDER_STATUS] ||
                   o.status}
               </span>
-              <h3 className="type-h3 break-words">{o.title}</h3>
+              <h3 className="type-h3 break-words">{renameDisplayText(o.title)}</h3>
               <p className="type-body text-muted">
                 {o.amountMinor === null
                   ? "Стоимость согласуется"

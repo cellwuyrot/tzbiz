@@ -22,7 +22,31 @@ export async function PATCH(
     return jsonError("Проверьте данные.", 400);
   const order = await prisma.businessOrder.findUnique({ where: { id } });
   if (!order) return jsonError("Заявка не найдена.", 404);
-  if (!canTransition(order.settlementMode, order.status, p.data.status))
+  const paid =
+    order.settlementMode === "PREPAYMENT"
+      ? await prisma.invoice.aggregate({
+          where: {
+            orderId: order.id,
+            userId: order.userId,
+            status: "PAID",
+            currency: order.currency,
+          },
+          _sum: { amountMinor: true },
+        })
+      : null;
+  const paymentConfirmed = Boolean(
+    order.amountMinor !== null &&
+    order.amountMinor > 0 &&
+    (paid?._sum.amountMinor || 0) >= order.amountMinor,
+  );
+  if (
+    !canTransition(
+      order.settlementMode,
+      order.status,
+      p.data.status,
+      paymentConfirmed,
+    )
+  )
     return jsonError(
       "Этот переход недоступен. Оплату и выдачу подписки нельзя подтвердить вручную этим статусом.",
       409,

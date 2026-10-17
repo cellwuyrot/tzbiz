@@ -1,0 +1,7 @@
+{
+  "passed": 2,
+  "checks": [
+    "IntegrationCheck: structured schema diagnostic, HTTP 200",
+    "Session: structured schema diagnostic, HTTP 503"
+  ]
+}

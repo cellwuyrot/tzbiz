@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "before": {
+    "User": 2,
+    "Service": 1,
+    "BusinessOrder": 4,
+    "LeadRequest": 1
+  },
+  "after": {
+    "User": 2,
+    "Service": 1,
+    "BusinessOrder": 4,
+    "LeadRequest": 1
+  },
+  "newInvoiceTable": true
+}

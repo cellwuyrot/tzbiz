@@ -1,11 +1,36 @@
+import { logFailure } from "./diagnostics";
 import { prisma } from "./db";
 import { tzIdConfigSnapshot } from "./tz-id/config";
 import { mailConfigSnapshot } from "./mailer-config";
 export async function integrationStatus() {
-  const checks = await prisma.integrationCheck.findMany({
-    where: { key: { in: ["smtp.verify", "smtp.test"] } },
-  });
+  let checksError: ReturnType<typeof logFailure> | null = null;
+  const checks = await prisma.integrationCheck
+    .findMany({
+      where: { key: { in: ["smtp.verify", "smtp.test"] } },
+    })
+    .catch((error: unknown) => {
+      checksError = logFailure("integrations.history", error);
+      return [];
+    });
+  const worker = await prisma.maintenanceState
+    .findUnique({ where: { key: "mail-worker" } })
+    .catch(() => null);
+  const pendingMailJobs = await prisma.mailJob
+    .count({ where: { status: { in: ["PENDING", "RUNNING"] } } })
+    .catch(() => null);
+  const failedMailJobs = await prisma.mailJob
+    .count({ where: { status: "FAILED" } })
+    .catch(() => null);
   return {
+    worker: {
+      lastSuccessAt: worker?.lastSuccessAt.toISOString() || null,
+      healthy: Boolean(
+        worker && Date.now() - worker.lastSuccessAt.getTime() < 300000,
+      ),
+      pendingMailJobs,
+      failedMailJobs,
+    },
+    checksError: checksError as ReturnType<typeof logFailure> | null,
     mail: mailConfigSnapshot(),
     tzId: tzIdConfigSnapshot(),
     billing: {
@@ -23,7 +48,7 @@ export async function integrationStatus() {
     platform: {
       connected: false as const,
       reason:
-        "Вход Business через существующий OIDC TZ ID реализован и требует конфигурации. Заявки на тарифы и снимки условий реализованы. Обмен подписками, приём платежей и выдача Premium/VPN требуют контракта центрального биллинга. Письмо на info@trioz.ru не создаёт аккаунт или подписку.",
+        "Вход Business через существующий OIDC TZ ID реализован и требует конфигурации. Заявки на тарифы и снимки условий реализованы. Обмен подписками, приём платежей и выдача Premium / «Надёжное соединение» требуют контракта центрального биллинга. Письмо на info@trioz.ru не создаёт аккаунт или подписку.",
     },
   };
 }

@@ -1,3 +1,4 @@
+import { INVOICE_STATUSES, INVOICE_METHODS } from "@/lib/invoices";
 import Link from "next/link";
 import { OrderHistory } from "@/components/order-history";
 import { safeReturnTo } from "@/lib/return-to";
@@ -23,6 +24,13 @@ export default async function AccountPage({
     config = tzIdConfigSnapshot();
   const orders = user
     ? await prisma.businessOrder.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      })
+    : [];
+  const invoices = user
+    ? await prisma.invoice.findMany({
         where: { userId: user.id },
         orderBy: { createdAt: "desc" },
         take: 100,
@@ -100,14 +108,45 @@ export default async function AccountPage({
           </div>
         )}
         {user ? <OrderHistory orders={orders} /> : null}
-        <div className="panel p-6 type-body text-muted">
-          Покупки и списания пока не включены. Центральный профиль остаётся в TZ
-          ID; Business хранит локальный аккаунт и его связь с TZ ID.{" "}
-          <Link className="text-accent" href="/plans">
-            Посмотреть тарифы
-          </Link>
-          .
-        </div>
+        {user ? (
+          <section className="space-y-4">
+            <h2 className="type-h3">Мои счета</h2>
+            {!invoices.length ? (
+              <p className="type-body text-muted">Выставленных счетов нет.</p>
+            ) : (
+              invoices.map((invoice) => (
+                <article className="panel p-5 space-y-3" key={invoice.id}>
+                  <h3 className="type-h3">{invoice.title}</h3>
+                  <p className="type-ui">
+                    {
+                      INVOICE_METHODS[
+                        invoice.method as keyof typeof INVOICE_METHODS
+                      ]
+                    }{" "}
+                    ·{" "}
+                    {
+                      INVOICE_STATUSES[
+                        invoice.status as keyof typeof INVOICE_STATUSES
+                      ]
+                    }
+                  </p>
+                  <p className="type-body">
+                    {new Intl.NumberFormat("ru-RU", {
+                      style: "currency",
+                      currency: "RUB",
+                    }).format(invoice.amountMinor / 100)}
+                  </p>
+                  <Link
+                    className="button-secondary"
+                    href={`/invoices/${invoice.id}`}
+                  >
+                    Открыть счёт
+                  </Link>
+                </article>
+              ))
+            )}
+          </section>
+        ) : null}
       </section>
     </main>
   );

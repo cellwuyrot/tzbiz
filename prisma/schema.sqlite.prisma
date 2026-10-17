@@ -48,6 +48,7 @@ model User {
   sessions     Session[]
   tzIdentity   TzIdentityLink?
   planEdits    BillingPlanAudit[]
+  invoices     Invoice[]
   orders       BusinessOrder[]
 }
 
@@ -232,6 +233,12 @@ model CommerceSettings {
   id String @id @default("commerce")
   sellerName String @default("")
   sellerDetails String @default("")
+  sellerInn String @default("")
+  sellerKpp String @default("")
+  bankName String @default("")
+  bankBik String @default("")
+  bankAccount String @default("")
+  bankCorrespondentAccount String @default("")
   supportEmail String @default("info@trioz.ru")
   paymentInstructions String @default("")
   fulfillmentTerms String @default("")
@@ -283,4 +290,42 @@ model MailJob {
   errorCategory String?
   @@unique([leadId, channel])
   @@index([status, availableAt])
+}
+
+model Invoice {
+  id String @id @default(cuid())
+  number String @unique
+  requestKey String @unique
+  requestHash String
+  userId String
+  user User @relation(fields:[userId],references:[id],onDelete:Restrict)
+  orderId String?
+  method String
+  status String @default("ISSUED")
+  revision Int @default(1)
+  title String
+  amountMinor Int
+  currency String @default("RUB")
+  buyerName String
+  buyerInn String @default("")
+  buyerDetails String @default("")
+  sellerSnapshot String
+  taxNote String
+  paymentUrl String @default("")
+  periodMonths Int?
+  renewalTerms String @default("")
+  dueDate DateTime
+  paidAt DateTime?
+  paymentReference String @default("")
+  createdById String
+  history String @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId,createdAt])
+  @@index([status,createdAt])
+}
+
+model MaintenanceState {
+ key String @id
+ lastSuccessAt DateTime
 }
