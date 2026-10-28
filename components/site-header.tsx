@@ -1,14 +1,16 @@
 import Link from "next/link";
+import { getCurrentUser } from "@/lib/auth";
 import { RequestServiceLink } from "./request-service-link";
 import { ArrowUpRight, LogoMark } from "./icons";
-export function SiteHeader({ basePath = "" }: { basePath?: string }) {
+export async function SiteHeader({ basePath = "" }: { basePath?: string }) {
+  const user = await getCurrentUser();
   const links = [
     [`${basePath}#services`, "Услуги"],
     ["/plans", "Каталог"],
     ["/documents", "Документы"],
     ["/payment", "Как оплатить"],
     [`${basePath}#contact`, "Контакты"],
-    ["/account", "Войти / Кабинет"],
+    ["/account", user ? "Кабинет" : "Вход"],
   ];
   return (
     <header className="relative z-30 border-b border-border">

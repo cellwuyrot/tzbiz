@@ -22,6 +22,7 @@ export async function PATCH(
     return jsonError("Проверьте данные.", 400);
   const order = await prisma.businessOrder.findUnique({ where: { id } });
   if (!order) return jsonError("Заявка не найдена.", 404);
+  if (p.data.status === "CANCELLED" && await prisma.bankPayment.count({ where: { orderId: id, activeKey: id, status: { notIn: ["REFUNDED", "REVERSED", "CANCELED", "REJECTED", "DEADLINE_EXPIRED", "AUTH_FAIL"] } } })) return jsonError("Сначала отмените платёж или оформите возврат в Т-Банке и проверьте банковский статус. Иначе клиент может оплатить отменённый заказ.", 409);
   const paid =
     order.settlementMode === "PREPAYMENT"
       ? await prisma.invoice.aggregate({
@@ -34,7 +35,8 @@ export async function PATCH(
           _sum: { amountMinor: true },
         })
       : null;
-  const paymentConfirmed = Boolean(
+  const bankPaid = await prisma.bankPayment.findFirst({ where: { orderId: id, status: "CONFIRMED", amountMinor: order.amountMinor ?? -1 } });
+  const paymentConfirmed = Boolean(bankPaid) || Boolean(
     order.amountMinor !== null &&
     order.amountMinor > 0 &&
     (paid?._sum.amountMinor || 0) >= order.amountMinor,

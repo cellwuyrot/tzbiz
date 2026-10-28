@@ -115,7 +115,9 @@ export async function POST(request: NextRequest) {
         error.message.includes("Размер") ||
         error.message.includes("MIME") ||
         error.message.includes("Расширение") ||
-        error.message.includes("формату изображения")
+        error.message.includes("формату изображения") ||
+        error.message.includes("повреждено") ||
+        error.message.includes("После обработки")
       ) {
         return jsonError(error.message, 400);
       }

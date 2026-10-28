@@ -1,3 +1,5 @@
+import { MediaImage } from "@/components/media-image";
+import Link from "next/link";
 import { getClientProjects } from "@/lib/project-access";
 import { requireRole } from "@/lib/auth";
 import { STATUS_LABELS } from "@/lib/constants";
@@ -21,7 +23,7 @@ export default async function DashboardPage() {
               <p className="type-ui text-subtle">Личный кабинет</p>
             </div>
           </div>
-          <LogoutButton />
+          <div className="flex flex-wrap gap-3"><Link className="button-secondary" href="/account">Заказы и оплата</Link><LogoutButton /></div>
         </div>
       </header>
 
@@ -34,6 +36,7 @@ export default async function DashboardPage() {
           </p>
         </div>
 
+        <nav className="account-tabs mb-8" aria-label="Личный кабинет"><Link href="/account?section=orders">Заказы и оплата</Link><Link href="/account?section=invoices">Счета</Link><Link href="/account?section=profile">Профиль</Link><Link href="/dashboard" aria-current="page">Мои проекты</Link></nav>
         {projects.length === 0 ? (
           <div className="panel grid min-h-[300px] place-items-center p-8 text-center">
             <div>
@@ -56,7 +59,7 @@ export default async function DashboardPage() {
                 className="overflow-hidden rounded-3xl border border-border bg-panel"
               >
                 <div className="relative aspect-[16/10] overflow-hidden bg-panel-2">
-                  <img
+                  <MediaImage
                     src={project.previewPath}
                     alt={`Превью проекта «${project.title}»`}
                     className="h-full w-full object-cover"

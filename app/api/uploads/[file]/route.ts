@@ -25,22 +25,23 @@ export async function GET(_request: Request, { params }: Params) {
   if (!filePath) return new NextResponse(null, { status: 404 });
 
   const previewPath = `/api/uploads/${file}`;
-  const [project, media] = await Promise.all([
-    prisma.project.findFirst({ where: { previewPath }, select: { isPublic: true, clientId: true } }),
-    prisma.serviceMedia.findFirst({
+  const [projects, media, plans] = await Promise.all([
+    prisma.project.findMany({ where: { previewPath }, select: { isPublic: true, clientId: true } }),
+    prisma.serviceMedia.findMany({
       where: { path: previewPath },
       select: { service: { select: { isPublished: true } } },
     }),
+    prisma.billingPlan.findMany({ where: { cardImageUrl: previewPath }, select: { isPublished: true, isArchived: true, kind: true, service: { select: { isPublished: true } } } }),
   ]);
 
-  if (!project && !media) return new NextResponse(null, { status: 404 });
+  if (!projects.length && !media.length && !plans.length) return new NextResponse(null, { status: 404 });
+  const isPublic = projects.some(p => p.isPublic) || media.some(m => m.service.isPublished) || plans.some(p => p.isPublished && !p.isArchived && (p.kind !== "SERVICE" || p.service?.isPublished));
 
   const user = await getCurrentUser();
   const allowed =
-    project?.isPublic === true ||
-    media?.service.isPublished === true ||
+    isPublic ||
     user?.role === "ADMIN" ||
-    (user?.role === "CLIENT" && project?.clientId === user.id);
+    (user?.role === "CLIENT" && projects.some(p => p.clientId === user.id));
 
   if (!allowed) return new NextResponse(null, { status: 404 });
 
@@ -51,7 +52,7 @@ export async function GET(_request: Request, { params }: Params) {
   const kind = mediaKindFromExtension(file);
   const headers = {
     "Content-Type": CONTENT_TYPES[extension] ?? "application/octet-stream",
-    "Cache-Control": project?.isPublic || media?.service.isPublished ? "public, max-age=3600" : "private, no-store",
+    "Cache-Control": "private, no-store",
     "X-Content-Type-Options": "nosniff",
   };
 

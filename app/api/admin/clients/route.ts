@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       },
     });
     return NextResponse.json(
-      { client, temporaryPassword: password },
+      { client, notice: "Создана карточка клиента. Вход — через TZ ID; для существующей карточки требуется безопасный перенос привязки." },
       { status: 201 },
     );
   } catch (error) {

@@ -95,6 +95,9 @@ export async function POST(r: NextRequest) {
           return {
             error: "Заявка недоступна или принадлежит другому клиенту.",
           };
+        const lock = await tx.businessOrder.updateMany({ where: { id: order.id, updatedAt: order.updatedAt }, data: { updatedAt: new Date() } });
+        if (!lock.count) return { error: "Заказ изменён. Обновите список." };
+        if (await tx.bankPayment.count({ where: { orderId: order.id, activeKey: order.id } })) return { error: "Для заказа уже создан платёж Т-Банка. Новый счёт создаст риск двойной оплаты." };
       }
       const { amountRub, requestKey, ...input } = p.data;
       const { providerConfirmed, ...invoiceData } = input;

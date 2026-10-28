@@ -1,23 +1,6 @@
 import "dotenv/config";
-import bcrypt from "bcryptjs";
 import fs from "node:fs";
 import { PrismaClient } from "@prisma/client";
-
-const email = (process.env.ADMIN_EMAIL ?? "").trim().toLowerCase();
-const password = process.env.ADMIN_PASSWORD ?? "";
-
-if (!email || !password) {
-  throw new Error("ADMIN_EMAIL and ADMIN_PASSWORD are required for seeding.");
-}
-if (password.length < 10) {
-  throw new Error("ADMIN_PASSWORD must be at least 10 characters long.");
-}
-
-if (
-  process.env.NODE_ENV === "production" &&
-  (password.startsWith("replace-") || email.endsWith("@example.com"))
-)
-  throw new Error("Configure real production admin credentials, not examples.");
 
 const content = JSON.parse(
   fs.readFileSync(
@@ -52,15 +35,6 @@ async function ensureService(service, sortOrder) {
 }
 
 try {
-  const passwordHash = await bcrypt.hash(password, 12);
-  const admin = await prisma.user.upsert({
-    where: { email },
-    update: { passwordHash, role: "ADMIN", name: "TRIOZ Admin" },
-    create: { email, passwordHash, role: "ADMIN", name: "TRIOZ Admin" },
-  });
-
-  await prisma.session.deleteMany({ where: { userId: admin.id } });
-
   const existingSettings = await prisma.siteSettings.findUnique({
     where: { id: "site-settings" },
   });
@@ -76,7 +50,7 @@ try {
   }
 
   console.log(
-    "Seed complete: administrator, site settings, " +
+    "Seed complete: site settings, " +
       createdServices +
       " new services.",
   );

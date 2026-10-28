@@ -3,13 +3,14 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { analyticsPath } from "@/lib/privacy";
-type Choice = { chosen: boolean; analytics: boolean };
+type Choice = { chosen: boolean; analytics: boolean; analyticsReady?: boolean };
 export function CookieConsent() {
   const pathname = usePathname(),
     [choice, setChoice] = useState<Choice | null>(null),
     [open, setOpen] = useState(false),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [notice, setNotice] = useState("");
   const viewed = useRef("");
   const load = useCallback(async () => {
     const r = await fetch("/api/privacy/consent", { cache: "no-store" });
@@ -62,8 +63,9 @@ export function CookieConsent() {
         headers: { "content-type": "application/json", "x-csrf-token": token },
         body: JSON.stringify({ analytics }),
       });
-      if (!r.ok) throw Error("Не удалось сохранить выбор. Повторите попытку.");
       const d = await r.json();
+      if (!r.ok) throw Error(d.error || "Не удалось сохранить выбор. Повторите попытку.");
+      setNotice(d.notice || "");
       if (!d.analytics) viewed.current = "";
       setChoice(d);
       setOpen(false);
@@ -80,6 +82,7 @@ export function CookieConsent() {
   }
   return (
     <div className="privacy-controls">
+      {notice && <p role="status" className="cookie-notice panel p-4 type-ui">{notice} <button type="button" className="text-accent underline" onClick={() => setNotice("")}>Закрыть</button></p>}
       {open ? (
         <section
           role="dialog"

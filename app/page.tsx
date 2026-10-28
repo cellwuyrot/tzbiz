@@ -109,7 +109,7 @@ export default async function HomePage({
           <div className="relative z-10 max-w-3xl">
             <ScrollReveal>
               <div className="eyebrow">{settings.tagline}</div>
-              <h1 id="hero-title" className="type-h1 mt-5 max-w-3xl text-text">
+              <h1 id="hero-title" className="hero-title mt-5 max-w-3xl text-text">
                 {settings.heroTitle}
               </h1>
             </ScrollReveal>
@@ -259,7 +259,7 @@ export default async function HomePage({
               Digital systems для бизнеса: интеграции, автоматизация,
               веб-разработка, инфраструктура и сопровождение.
             </p>
-            <p className="mt-3 type-ui text-subtle">{settings.contacts}</p>
+            <p className="mt-3 type-ui text-subtle">{settings.contacts.replace(/(?:https?:\/\/)?trioz\.ru\/connect\/?/gi, "").trim()}</p>
           </div>
           <div>
             <div className="type-ui font-semibold text-text">Навигация</div>
@@ -299,20 +299,13 @@ export default async function HomePage({
               <a href="mailto:info@trioz.ru" className="hover:text-accent">
                 info@trioz.ru
               </a>
-              <a
-                href="https://trioz.ru/connect"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-accent"
-              >
-                trioz.ru/connect <ArrowUpRight />
-              </a>
+
             </div>
           </div>
           <div>
             <div className="type-ui font-semibold text-text">Услуги</div>
             <div className="mt-4 grid gap-2 type-ui text-muted">
-              {services.slice(0, 3).map((service) => (
+              {services.map((service) => (
                 <a
                   key={service.slug}
                   href={`/services/${service.slug}`}
@@ -327,12 +320,12 @@ export default async function HomePage({
         <div className="mt-8 flex flex-col gap-3 border-t border-border pt-5 type-ui text-subtle sm:flex-row sm:items-center sm:justify-between">
           <span>© {new Date().getFullYear()} TRIOZ. Все права защищены.</span>
           <a
-            href="https://trioz.ru/connect"
+            href="https://trioz.ru"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-accent hover:text-text"
+            className="inline-flex items-center gap-2 text-accent hover:text-text"
           >
-            Основной проект: trioz.ru/connect <ArrowUpRight />
+            Основной проект: trioz.ru <ArrowUpRight />
           </a>
         </div>
       </footer>

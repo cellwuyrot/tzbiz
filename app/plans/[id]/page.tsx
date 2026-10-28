@@ -1,3 +1,5 @@
+import { MediaImage } from "@/components/media-image";
+import { checkoutAvailable } from "@/lib/billing/tbank";
 import { renameDisplayText } from "@/lib/display-labels";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -19,15 +21,16 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const p = await prisma.billingPlan.findUnique({ where: { id } });
+  const p = await prisma.billingPlan.findUnique({ where: { id }, include: { service: { select: { isPublished: true } } } });
+  const visible = p?.isPublished && !p.isArchived && (p.kind !== "SERVICE" || p.service?.isPublished);
   return {
     title:
-      p?.isPublished && !p.isArchived
+      visible
         ? renameDisplayText(p.title)
         : "Предложение",
     alternates: { canonical: `/plans/${id}` },
-    description: p ? renameDisplayText(p.description).slice(0, 160) : undefined,
-    robots: { index: true, follow: true },
+    description: visible ? renameDisplayText(p!.description).slice(0, 160) : undefined,
+    robots: { index: !!visible, follow: !!visible },
   };
 }
 export default async function Plan({
@@ -109,7 +112,7 @@ export default async function Plan({
             </p>
           </div>
           {plan.cardImageUrl && (
-            <img
+            <MediaImage
               src={plan.cardImageUrl}
               alt={plan.title}
               className="aspect-video w-full rounded-xl object-cover"
@@ -163,10 +166,10 @@ export default async function Plan({
               .
             </div>
           ) : user ? (
-            <OrderRequest planId={plan.id} revision={plan.revision} />
+            <OrderRequest planId={plan.id} revision={plan.revision} payable={checkoutAvailable(plan.settlementMode, plan.amountMinor, plan.currency)} />
           ) : (
             <div className="panel space-y-5 p-6">
-              <h2 className="type-h3">Сохраните заявку в кабинете</h2>
+              <h2 className="type-h3">Оформите выбранный тариф</h2>
               <p className="type-body text-muted">
                 Войдите, чтобы выбранное предложение и его условия сохранились в
                 истории.

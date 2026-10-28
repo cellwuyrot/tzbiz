@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Role, User } from "@prisma/client";
@@ -75,7 +76,7 @@ export async function destroySession() {
   store.set(SESSION_COOKIE, "", { ...sessionCookieOptions, maxAge: 0 });
 }
 
-export async function getCurrentUser(): Promise<User | null> {
+export const getCurrentUser = cache(async function getCurrentUser(): Promise<User | null> {
   const store = await cookies();
   const raw = store.get(SESSION_COOKIE)?.value;
   if (!raw) return null;
@@ -90,7 +91,9 @@ export async function getCurrentUser(): Promise<User | null> {
       .catch(() => undefined);
     return null;
   }
-  const tzActive = session.tzIssuer ? await isActiveTzSession(session) : true;
+  // Password-era sessions cannot access either cabinet, even if linked to TZ ID.
+  if (!session.tzIssuer || !session.tzSubject || !session.tzAccessTokenEncrypted) return null;
+  const tzActive = await isActiveTzSession(session);
   if (tzActive === null) return null; // Fail closed without deleting a potentially valid session.
   if (!tzActive) {
     await prisma.session
@@ -102,7 +105,7 @@ export async function getCurrentUser(): Promise<User | null> {
   return session.tzIssuer
     ? { ...session.user, role: await readTzProjectRole(session) }
     : session.user;
-}
+});
 
 export async function requireRole(role: Role) {
   const user = await getCurrentUser();

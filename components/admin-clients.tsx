@@ -61,16 +61,12 @@ export function AdminClients({ onUpdated }: { onUpdated: () => void }) {
     setError("");
     setNotice("");
     try {
-      const data = await adminMutation<{ temporaryPassword?: string }>(
+      await adminMutation<unknown>(
         url,
         method,
         body,
       );
-      setNotice(
-        data.temporaryPassword
-          ? `Пароль: ${data.temporaryPassword}`
-          : "Изменения сохранены.",
-      );
+      setNotice("Изменения сохранены. Доступ клиента управляется через TZ ID.");
       await load();
       onUpdated();
       return true;
@@ -254,23 +250,7 @@ export function AdminClients({ onUpdated }: { onUpdated: () => void }) {
               >
                 Сохранить
               </button>
-              <button
-                className="button-secondary"
-                disabled={busy}
-                onClick={() => {
-                  if (
-                    confirm(
-                      "Сбросить пароль клиента и завершить все его сеансы?",
-                    )
-                  )
-                    void action(
-                      `/api/admin/clients/${client.id}/reset-password`,
-                      "POST",
-                    );
-                }}
-              >
-                Сбросить пароль
-              </button>
+
               <button
                 className="button-secondary text-danger"
                 disabled={busy}

@@ -303,6 +303,7 @@ export function AdminIntegrations() {
             ) : null}
 
             <dl className="admin-facts type-ui">
+              <div><dt>Оплата через Т-Банк</dt><dd>{status.billing.checkoutEnabled ? "Настроена (требуется проверка терминала)" : status.billing.checkoutIssue}</dd></div>
               <div>
                 <dt>Выдача прав в проекты TrioZ</dt>
                 <dd>Не подключена</dd>
@@ -315,7 +316,7 @@ export function AdminIntegrations() {
 
             <a
               className="button-secondary"
-              href="https://trioz.ru/connect"
+              href="https://trioz.ru"
               target="_blank"
               rel="noopener noreferrer"
             >

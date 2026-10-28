@@ -1,4 +1,6 @@
 "use client";
+import { MediaImage } from "@/components/media-image";
+
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "./icons";
@@ -101,7 +103,7 @@ export function PortfolioSlider({
                 aria-label={`Открыть проект «${project.title}»`}
               >
                 <div className="portfolio-media">
-                  <img
+                  <MediaImage
                     src={project.previewPath}
                     alt={`Проект «${project.title}»`}
                   />
