@@ -37,3 +37,49 @@ it("an unpaid application can be cancelled but not while its bank result is unkn
 it("expires access even with all charging switches off", async () => { vi.stubEnv("SUBSCRIPTIONS_ENABLED", "0"); vi.stubEnv("TBANK_RECURRENT_ENABLED", "0"); const s = await sub({ status: "ACTIVE", autoRenew: false, paidUntil: new Date(Date.now() - 1000), paidIndex: 0 }); await runServiceJobs(); const saved = await prisma.serviceSubscription.findUniqueOrThrow({ where: { id: s.id } }); expect(saved.status).toBe("EXPIRED"); expect(saved.activeKey).toBeNull(); expect(saved.syncPending).toBe(false); expect(serviceHub).toHaveBeenCalledWith(expect.objectContaining({ action: "fulfill", status: "EXPIRED" })); expect(bankRequest).not.toHaveBeenCalled(); });
 
 it("mails manual completion only after the executor actually confirms it",async()=>{const s=await sub({snapshot:JSON.stringify({accessKind:"MANUAL"}),status:"ACTIVE",paidIndex:0,syncVersion:1,paidUntil:new Date(Date.now()+86400000)});vi.mocked(serviceHub).mockResolvedValue({connections:[{externalId:s.id,version:1,status:"PENDING",manualState:"ACTIVATION_PENDING"}]});await pollManualCompletion();expect(await prisma.serviceNotice.count()).toBe(0);vi.mocked(serviceHub).mockResolvedValue({connections:[{externalId:s.id,version:1,status:"ACTIVE",manualState:"DONE"}]});await pollManualCompletion();await pollManualCompletion();expect(await prisma.serviceNotice.count()).toBe(1);expect((await prisma.serviceNotice.findFirstOrThrow()).text).toContain("фактическое подключение");});
+
+it.each(["VPN", "PREMIUM"])("a 200 RUB %s purchase activates only after confirmation and syncs the same TZ ID subject", async kind => {
+  const input = await setupPurchase();
+  vi.mocked(serviceCatalog).mockResolvedValue([{ ...published, title: kind === "VPN" ? "Надёжное соединение" : "Premium", accessKind: kind, prices: '{"1":20000}', methods: '["ONE_TIME"]' }]);
+  const purchase = await createSubscription({ id: userId, email: "customer@example.test" }, { ...input, method: "ONE_TIME", recurringConsent: false });
+  expect(purchase.amountMinor).toBe(20000);
+  expect(JSON.parse(purchase.snapshot).accessKind).toBe(kind);
+  const c = await cycle(purchase.id, { amountMinor: 20000 });
+  await applyServicePayment(notice(c.id, { Amount: 20000, Status: "AUTHORIZED" }));
+  expect((await prisma.serviceSubscription.findUniqueOrThrow({ where: { id: purchase.id } })).status).toBe("PENDING");
+  await applyServicePayment(notice(c.id, { Amount: 20000 }));
+  await applyServicePayment(notice(c.id, { Amount: 20000 }));
+  const paid = await prisma.serviceSubscription.findUniqueOrThrow({ where: { id: purchase.id } });
+  expect(paid).toMatchObject({ status: "ACTIVE", paidIndex: 0, syncVersion: 1, syncPending: true });
+  expect(paid.paidUntil!.getTime()).toBeGreaterThan(Date.now());
+  await syncServiceAccess(paid);
+  expect(serviceHub).toHaveBeenLastCalledWith(expect.objectContaining({ action: "fulfill", subject: "central-sub", serviceId: published.id, externalId: purchase.id, expectedAccessKind: kind, status: "ACTIVE", paidUntil: paid.paidUntil!.toISOString() }));
+  expect(await prisma.serviceNotice.count({ where: { subscriptionId: purchase.id, id: { endsWith: ":paid" } } })).toBe(1);
+  expect(await prisma.serviceNotice.count({ where: { subscriptionId: purchase.id } })).toBe(2);
+});
+it.each(["REJECTED", "AUTH_FAIL", "CANCELED", "DEADLINE_EXPIRED"])("a failed 200 RUB VPN payment (%s) grants nothing and enqueues one customer notice", async status => {
+  const s = await sub({ title: "Надёжное соединение", amountMinor: 20000, snapshot: JSON.stringify({ accessKind: "VPN" }), method: "ONE_TIME", autoRenew: false });
+  const c = await cycle(s.id, { amountMinor: 20000 });
+  const failure = notice(c.id, { Amount: 20000, Status: status, Success: false });
+  await applyServicePayment(failure); await applyServicePayment(failure);
+  const saved = await prisma.serviceSubscription.findUniqueOrThrow({ where: { id: s.id } });
+  expect(saved).toMatchObject({ status: "EXPIRED", paidUntil: null, paidIndex: -1, syncPending: false, autoRenew: false });
+  await syncServiceAccess(saved);
+  expect(serviceHub).not.toHaveBeenCalled();
+  const notices = await prisma.serviceNotice.findMany({ where: { subscriptionId: s.id } });
+  expect(notices).toHaveLength(1); expect(notices[0].text).toContain("не подтверждён");
+});
+it("a failed renewal preserves an existing paid period and sends a failure notice", async () => {
+  const until = new Date(Date.now() + 86400000);
+  const s = await sub({ status: "ACTIVE", paidUntil: until, paidIndex: 0 });
+  const c = await cycle(s.id, { cycleIndex: 1 });
+  await applyServicePayment(notice(c.id, { Status: "REJECTED", Success: false }));
+  const saved = await prisma.serviceSubscription.findUniqueOrThrow({ where: { id: s.id } });
+  expect(saved.status).toBe("ACTIVE"); expect(saved.paidUntil).toEqual(until);
+  expect(saved.autoRenew).toBe(false); expect(await prisma.serviceNotice.count()).toBe(1);
+});
+it("a definite Init refusal also enqueues the missing customer failure notice", async () => {
+  const s = await sub(); vi.mocked(bankRequest).mockResolvedValue({ Success: false, ErrorCode: "7" });
+  const c = await startServicePayment(s); expect(c.status).toBe("REJECTED");
+  expect(await prisma.serviceNotice.findUnique({ where: { id: `${c.id}:failed` } })).toMatchObject({ status: "PENDING", subscriptionId: s.id, text: expect.stringContaining("Банк отказал") });
+});
