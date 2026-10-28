@@ -41,3 +41,5 @@ it("does not charge negotiated, zero or post-payment prices", () => {
 });
 it.each([["CONFIRMED", "AUTHORIZED"], ["CONFIRMED", "NEW"], ["REFUNDED", "CONFIRMED"], ["PARTIAL_REFUNDED", "CONFIRMED"], ["NEW", "NEW"], ["REJECTED", "NEW"], ["AUTHORIZED", "FORM_SHOWED"]])("ignores duplicate/out-of-order status %s → %s", (from, to) => expect(paymentTransition(from, to)).toBe(false));
 it.each([["CREATING", "CONFIRMED"], ["NEW", "CONFIRMED"], ["AUTHORIZED", "CONFIRMED"], ["CONFIRMED", "REFUNDED"], ["CONFIRMED", "PARTIAL_REFUNDED"]])("accepts status %s → %s", (from, to) => expect(paymentTransition(from, to)).toBe(true));
+it.each(["pay.tbank.ru", "pay.tbank-online.com"])("accepts the bank payment form host %s", host => expect(safePaymentUrl(`https://${host}/synthetic-test`)).toBe(`https://${host}/synthetic-test`));
+it.each(["https://pay.tbank-online.com.evil.test/a", "http://pay.tbank-online.com/a", "https://user@pay.tbank-online.com/a", "https://pay.tbank-online.com:8443/a"])("does not weaken checkout validation: %s", value => expect(() => safePaymentUrl(value)).toThrow());
