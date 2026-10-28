@@ -405,6 +405,7 @@ model ServiceSubscription {
  anchor DateTime
  paidUntil DateTime?
  paidIndex Int @default(-1)
+ trustUntil DateTime?
  syncVersion Int @default(0)
  syncPending Boolean @default(false)
  stopRequested Boolean @default(false)
@@ -441,4 +442,21 @@ model ServiceNotice {
  attempts Int @default(0)
  availableAt DateTime @default(now())
  @@index([status, availableAt])
+}
+
+// A customer gets one provisional window per service, not a new free period for each checkout.
+model ServiceTrustGrant {
+ id String @id @default(cuid())
+ tzSubject String
+ serviceId String
+ subscriptionId String @unique
+ until DateTime
+ createdAt DateTime @default(now())
+ @@unique([tzSubject, serviceId])
+}
+model ServiceTrustPolicy {
+ id String @id @default("services")
+ hours Int @default(24)
+ updatedBy String?
+ updatedAt DateTime @updatedAt
 }

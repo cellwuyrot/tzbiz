@@ -28,7 +28,8 @@
     "account:link-tz": "tsx scripts/link-tz-account.ts",
     "payment:reconcile": "tsx scripts/reconcile-payment.ts",
     "images:check": "tsx scripts/image-check.ts",
-    "services:check": "tsx scripts/service-check.ts"
+    "services:check": "tsx scripts/service-check.ts",
+    "services:deliver": "tsx scripts/service-delivery-run.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.16.0",
