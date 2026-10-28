@@ -5,9 +5,10 @@ vi.mock("nodemailer", () => ({ default: { createTransport: vi.fn(() => ({ sendMa
 vi.mock("@/lib/services/bridge", () => ({ serviceCatalog: vi.fn(), serviceHub: vi.fn() }));
 vi.mock("@/lib/billing/tbank", async original => ({ ...await original<typeof import("@/lib/billing/tbank")>(), bankConfig: vi.fn(() => ({ terminal: "test-terminal", password: "synthetic", origin: "https://business.trioz.ru", receiptMode: "bank" })), bankRequest: vi.fn(), receiptFor: vi.fn(() => ({ Email: "customer@example.test" })) }));
 import { prisma } from "@/lib/db"; import { serviceCatalog, serviceHub } from "@/lib/services/bridge"; import { bankRequest } from "@/lib/billing/tbank";
-import { periodEnd, recurringEnabled } from "@/lib/services/calendar"; import { createSubscription, startServicePayment, applyServicePayment, stopSubscription, syncServiceAccess, purchasesEnabled } from "@/lib/services/subscriptions"; import { pollManualCompletion, runServiceJobs } from "@/lib/services/worker"; import { sealTzData, openTzData } from "@/lib/tz-id/crypto";
+import { ensureTrustAccess, expireTrustAccess, queueServiceReminders } from "@/lib/services/trust";
+import { periodEnd, recurringEnabled } from "@/lib/services/calendar"; import { createSubscription, startServicePayment, applyServicePayment, stopSubscription, syncServiceAccess, purchasesEnabled } from "@/lib/services/subscriptions"; import { pollManualCompletion, runServiceJobs, sendServiceNotices } from "@/lib/services/worker"; import { sealTzData, openTzData } from "@/lib/tz-id/crypto";
 let userId: string;
-beforeEach(async () => { vi.clearAllMocks(); vi.stubEnv("SUBSCRIPTIONS_ENABLED", "1"); vi.stubEnv("SUBSCRIPTION_TERMS_APPROVED", "1"); vi.stubEnv("TBANK_RECURRENT_ENABLED", "1"); vi.stubEnv("TBANK_RECURRENT_BANK_APPROVED", "1"); vi.stubEnv("TZ_ID_TOKEN_KEY", Buffer.alloc(32, 7).toString("base64")); await prisma.serviceNotice.deleteMany(); await prisma.serviceCycle.deleteMany(); await prisma.serviceSubscription.deleteMany(); const user = await prisma.user.upsert({ where: { email: "customer@example.test" }, create: { email: "customer@example.test", name: "Customer", passwordHash: "unused" }, update: {} }); userId = user.id; vi.mocked(serviceHub).mockResolvedValue({ ok: true, allowed: true }); vi.mocked(serviceCatalog).mockResolvedValue([]); });
+beforeEach(async () => { vi.clearAllMocks(); vi.stubEnv("SUBSCRIPTIONS_ENABLED", "1"); vi.stubEnv("SUBSCRIPTION_TERMS_APPROVED", "1"); vi.stubEnv("TBANK_RECURRENT_ENABLED", "1"); vi.stubEnv("TBANK_RECURRENT_BANK_APPROVED", "1"); vi.stubEnv("TZ_ID_TOKEN_KEY", Buffer.alloc(32, 7).toString("base64")); await prisma.serviceTrustGrant.deleteMany(); await prisma.serviceTrustPolicy.deleteMany(); await prisma.serviceNotice.deleteMany(); await prisma.serviceCycle.deleteMany(); await prisma.serviceSubscription.deleteMany(); const user = await prisma.user.upsert({ where: { email: "customer@example.test" }, create: { email: "customer@example.test", name: "Customer", passwordHash: "unused" }, update: {} }); userId = user.id; vi.mocked(serviceHub).mockResolvedValue({ ok: true, allowed: true }); vi.mocked(serviceCatalog).mockResolvedValue([]); });
 afterAll(async () => { await prisma.$disconnect(); fs.rmSync(process.env.MANAGED_TEST_DIR!, { recursive: true, force: true }); vi.unstubAllEnvs(); });
 async function sub(extra = {}) { return prisma.serviceSubscription.create({ data: { userId, tzSubject: "central-sub", serviceId: "service-1", title: "Premium", snapshot: JSON.stringify({ accessKind: "PREMIUM" }), amountMinor: 10000, months: 1, method: "RECURRING", autoRenew: true, allowCancel: true, consent: "explicit consent", requestKey: crypto.randomUUID(), requestHash: "hash", activeKey: `${userId}:service-1`, anchor: new Date(), ...extra } }); }
 async function cycle(subscriptionId: string, extra = {}) { return prisma.serviceCycle.create({ data: { subscriptionId, cycleIndex: 0, periodEnd: new Date(Date.now() + 86400000), amountMinor: 10000, terminalKey: "test-terminal", paymentId: "123", status: "NEW", ...extra } }); }
@@ -55,7 +56,7 @@ it.each(["VPN", "PREMIUM"])("a 200 RUB %s purchase activates only after confirma
   await syncServiceAccess(paid);
   expect(serviceHub).toHaveBeenLastCalledWith(expect.objectContaining({ action: "fulfill", subject: "central-sub", serviceId: published.id, externalId: purchase.id, expectedAccessKind: kind, status: "ACTIVE", paidUntil: paid.paidUntil!.toISOString() }));
   expect(await prisma.serviceNotice.count({ where: { subscriptionId: purchase.id, id: { endsWith: ":paid" } } })).toBe(1);
-  expect(await prisma.serviceNotice.count({ where: { subscriptionId: purchase.id } })).toBe(2);
+  expect(await prisma.serviceNotice.count({ where: { subscriptionId: purchase.id } })).toBe(3);
 });
 it.each(["REJECTED", "AUTH_FAIL", "CANCELED", "DEADLINE_EXPIRED"])("a failed 200 RUB VPN payment (%s) grants nothing and enqueues one customer notice", async status => {
   const s = await sub({ title: "Надёжное соединение", amountMinor: 20000, snapshot: JSON.stringify({ accessKind: "VPN" }), method: "ONE_TIME", autoRenew: false });
@@ -82,4 +83,110 @@ it("a definite Init refusal also enqueues the missing customer failure notice", 
   const s = await sub(); vi.mocked(bankRequest).mockResolvedValue({ Success: false, ErrorCode: "7" });
   const c = await startServicePayment(s); expect(c.status).toBe("REJECTED");
   expect(await prisma.serviceNotice.findUnique({ where: { id: `${c.id}:failed` } })).toMatchObject({ status: "PENDING", subscriptionId: s.id, text: expect.stringContaining("Банк отказал") });
+});
+
+it("grants 24h trust only after durable bank Init, without marking any period paid", async () => {
+  const s = await sub({ method: "ONE_TIME", autoRenew: false, snapshot: '{"accessKind":"VPN"}' });
+  vi.mocked(bankRequest).mockImplementation(async (_method, payload) => ({ Success: true, ErrorCode: "0", OrderId: payload.OrderId, Amount: 10000, TerminalKey: "test-terminal", PaymentId: "456", PaymentURL: "https://pay.tbank.ru/test" }));
+  await startServicePayment(s);
+  const live = await prisma.serviceSubscription.findUniqueOrThrow({ where: { id: s.id } });
+  expect(live.status).toBe("TRUSTED"); expect(live.paidUntil).toBeNull(); expect(live.paidIndex).toBe(-1);
+  expect(live.trustUntil!.getTime() - Date.now()).toBeGreaterThan(23.9 * 3600000);
+  expect(serviceHub).toHaveBeenCalledWith(expect.objectContaining({ action: "fulfill", accessSource: "TRUST", status: "ACTIVE" }));
+  expect((await prisma.serviceCycle.findFirstOrThrow()).status).toBe("NEW");
+  await startServicePayment(s); expect(await prisma.serviceTrustGrant.count()).toBe(1); expect(bankRequest).toHaveBeenCalledTimes(1);
+});
+it.each(["CREATING", "REJECTED", "CONFIRMED"])("does not grant initial trust for payment state %s", async status => {
+  const s = await sub(); await cycle(s.id, { status, paymentId: status === "CREATING" ? null : "123" });
+  expect(await ensureTrustAccess(s.id)).toBe(false); expect(await prisma.serviceTrustGrant.count()).toBe(0);
+});
+it("does not grant trust for a manual service or invoice or abandoned order", async () => {
+  let s = await sub({ snapshot: '{"accessKind":"MANUAL"}' }); await cycle(s.id); expect(await ensureTrustAccess(s.id)).toBe(false);
+  await prisma.serviceCycle.deleteMany(); await prisma.serviceSubscription.deleteMany(); s = await sub({ method: "INVOICE" }); await cycle(s.id); expect(await ensureTrustAccess(s.id)).toBe(false);
+  await prisma.serviceCycle.deleteMany(); await prisma.serviceSubscription.deleteMany(); s = await sub(); await cycle(s.id, { createdAt: new Date(Date.now() - 3600000) }); expect(await ensureTrustAccess(s.id)).toBe(false);
+});
+it("honors a configured duration and disabling trust affects new grants only", async () => {
+  await prisma.serviceTrustPolicy.create({ data: { id: "services", hours: 3 } }); const s = await sub(); await cycle(s.id);
+  expect(await ensureTrustAccess(s.id)).toBe(true); let live = await prisma.serviceSubscription.findUniqueOrThrow({ where: { id: s.id } }); const until = live.trustUntil;
+  expect(until!.getTime() - Date.now()).toBeLessThanOrEqual(3 * 3600000);
+  await prisma.serviceTrustPolicy.update({ where: { id: "services" }, data: { hours: 0 } }); expect(await ensureTrustAccess(s.id)).toBe(false);
+  live = await prisma.serviceSubscription.findUniqueOrThrow({ where: { id: s.id } }); expect(live.trustUntil).toEqual(until);
+});
+it("an expired credit is revoked without fake cancellation or a second payment and late confirmation still works", async () => {
+  const s = await sub(); const c = await cycle(s.id); await ensureTrustAccess(s.id);
+  await prisma.serviceSubscription.update({ where: { id: s.id }, data: { trustUntil: new Date(Date.now() - 1000) } }); await expireTrustAccess();
+  let live = await prisma.serviceSubscription.findUniqueOrThrow({ where: { id: s.id } });
+  expect(live.status).toBe("PENDING"); expect(live.syncPending).toBe(true); expect((await prisma.serviceCycle.findUniqueOrThrow({ where: { id: c.id } })).status).toBe("NEW");
+  await syncServiceAccess(live); expect(serviceHub).toHaveBeenLastCalledWith(expect.objectContaining({ status: "EXPIRED", accessSource: "TRUST" })); expect(bankRequest).not.toHaveBeenCalled();
+  expect(await ensureTrustAccess(s.id)).toBe(false);
+  await applyServicePayment(notice(c.id)); live = await prisma.serviceSubscription.findUniqueOrThrow({ where: { id: s.id } });
+  expect(live.status).toBe("ACTIVE"); expect(live.trustUntil).toBeNull(); expect(live.paidUntil!.getTime()).toBeGreaterThan(Date.now() + 27 * 86400000);
+  await syncServiceAccess(live); expect(serviceHub).toHaveBeenLastCalledWith(expect.objectContaining({ status: "ACTIVE", accessSource: "PAID" }));
+});
+it.each(["REJECTED", "CANCELED", "AUTH_FAIL", "DEADLINE_EXPIRED", "REVERSED"])("bank %s withdraws only the credit through a versioned outbox", async status => {
+  const s = await sub(); const c = await cycle(s.id); await ensureTrustAccess(s.id); const before = await prisma.serviceSubscription.findUniqueOrThrow({ where: { id: s.id } });
+  await applyServicePayment(notice(c.id, { Status: status, Success: false })); const live = await prisma.serviceSubscription.findUniqueOrThrow({ where: { id: s.id } });
+  expect(live.status).toBe("EXPIRED"); expect(live.paidIndex).toBe(-1); expect(live.syncVersion).toBe(before.syncVersion + 1); expect(live.syncPending).toBe(true);
+  await syncServiceAccess(live); expect(serviceHub).toHaveBeenLastCalledWith(expect.objectContaining({ status: "EXPIRED" }));
+  expect(await prisma.serviceNotice.count({ where: { id: `${c.id}:failed` } })).toBe(1); expect(bankRequest).not.toHaveBeenCalled();
+});
+it("prevents repeated free windows on a new checkout for the same central customer and service", async () => {
+  const s = await sub(); const c = await cycle(s.id); expect(await ensureTrustAccess(s.id)).toBe(true);
+  await applyServicePayment(notice(c.id, { Status: "CANCELED", Success: false })); const next = await sub(); await cycle(next.id, { paymentId: "456" });
+  expect(await ensureTrustAccess(next.id)).toBe(false); expect((await prisma.serviceSubscription.findUniqueOrThrow({ where: { id: next.id } })).status).toBe("PENDING");
+});
+it("mail reminders and provisional activation are queued once and never claim payment success", async () => {
+  const s = await sub(); await cycle(s.id); await ensureTrustAccess(s.id);
+  const old = new Date(Date.now() - 23 * 3600000), until = new Date(Date.now() + 3600000);
+  await prisma.serviceTrustGrant.update({ where: { subscriptionId: s.id }, data: { createdAt: old, until } });
+  await prisma.serviceSubscription.update({ where: { id: s.id }, data: { trustUntil: until } });
+  await queueServiceReminders(); await queueServiceReminders();
+  expect(await prisma.serviceNotice.count({ where: { id: `${s.id}:trust-reminder` } })).toBe(1);
+  expect((await prisma.serviceNotice.findUniqueOrThrow({ where: { id: `${s.id}:trust-started` } })).text).toContain("оплата ещё не подтверждена");
+});
+it("keeps failed access delivery pending for retry without another Init or Charge", async () => {
+  const s = await sub(); await cycle(s.id); await ensureTrustAccess(s.id); const live = await prisma.serviceSubscription.findUniqueOrThrow({ where: { id: s.id } });
+  vi.mocked(serviceHub).mockRejectedValueOnce(Error("offline")); await expect(syncServiceAccess(live)).rejects.toThrow();
+  expect((await prisma.serviceSubscription.findUniqueOrThrow({ where: { id: s.id } })).syncPending).toBe(true); expect(bankRequest).not.toHaveBeenCalled();
+});
+it("queues a purchase email even if the new checkout is not eligible for credit", async () => {
+  const input = await setupPurchase(); const first = await createSubscription({ id: userId, email: "customer@example.test" }, input);
+  const again = await createSubscription({ id: userId, email: "customer@example.test" }, input);
+  expect(first.id).toBe(again.id); expect(await prisma.serviceNotice.count({ where: { id: `${first.id}:order-created` } })).toBe(1);
+  expect((await prisma.serviceNotice.findFirstOrThrow()).text).toContain("не подтверждение оплаты");
+});
+it("queues one reminder for an ordinary unpaid checkout without granting credit", async () => {
+  const s = await sub({ createdAt: new Date(Date.now() - 2 * 86400000) }); await queueServiceReminders(); await queueServiceReminders();
+  expect(await prisma.serviceNotice.count({ where: { id: `${s.id}:pending-reminder` } })).toBe(1);
+  expect((await prisma.serviceSubscription.findUniqueOrThrow({ where: { id: s.id } })).status).toBe("PENDING");
+});
+it("delivers service notices to the registered Business account email, not to a checkout field", async () => {
+  vi.stubEnv("SMTP_HOST", "smtp.example.invalid"); vi.stubEnv("SMTP_USER", "union@business.trioz.ru"); vi.stubEnv("SMTP_PASS", "synthetic-password");
+  vi.stubEnv("EMAIL_FROM", "union@business.trioz.ru"); vi.stubEnv("EMAIL_REPLY_TO", "union@business.trioz.ru");
+  const s = await sub(); await prisma.serviceNotice.create({ data: { id: "mail-proof", subscriptionId: s.id, text: "Подписка подключена вручную: пример очереди" } });
+  await sendServiceNotices(); expect((await prisma.serviceNotice.findUniqueOrThrow({ where: { id: "mail-proof" } })).status).toBe("SENT");
+  const nodemailer = (await import("nodemailer")).default;
+  const transport = vi.mocked(nodemailer.createTransport).mock.results[0].value;
+  expect(vi.mocked(transport.sendMail).mock.calls[0][0]).toMatchObject({ to: "customer@example.test", from: "union@business.trioz.ru" });
+});
+
+it("suppresses queued unpaid reminders and credit emails after a later payment confirmation", async () => {
+  const s = await sub({ status: "ACTIVE", paidIndex: 0, paidUntil: new Date(Date.now()+86400000), syncVersion: 2 });
+  const suffixes = ["trust-started", "trust-reminder", "trust-ended", "pending-reminder", "access:1"];
+  for (const suffix of suffixes) await prisma.serviceNotice.create({ data: { id: `${s.id}:${suffix}`, subscriptionId: s.id, text: "obsolete" } });
+  await sendServiceNotices();
+  expect(await prisma.serviceNotice.count({ where: { status: "SKIPPED" } })).toBe(5);
+  expect((await import("nodemailer")).default.createTransport).not.toHaveBeenCalled();
+});
+it("does not send an obsolete paid-period reminder after a renewal or cancellation", async () => {
+  const s = await sub({ status: "ACTIVE", paidIndex: 1, paidUntil: new Date(Date.now()+86400000), stopRequested: true });
+  for (const i of [0,1]) await prisma.serviceNotice.create({ data: { id: `${s.id}:period-reminder:${i}`, subscriptionId: s.id, text: "obsolete" } });
+  await sendServiceNotices(); expect(await prisma.serviceNotice.count({ where: { status: "SKIPPED" } })).toBe(2);
+  expect((await import("nodemailer")).default.createTransport).not.toHaveBeenCalled();
+});
+it("still sends a current provisional reminder to the registered account", async () => {
+  vi.stubEnv("SMTP_HOST", "smtp.example.invalid"); vi.stubEnv("SMTP_USER", "union@business.trioz.ru"); vi.stubEnv("SMTP_PASS", "synthetic-password");
+  const s = await sub({ status: "TRUSTED", trustUntil: new Date(Date.now()+3600000) });
+  await prisma.serviceNotice.create({ data: { id: `${s.id}:trust-reminder`, subscriptionId: s.id, text: "Оплата ещё не подтверждена" } });
+  await sendServiceNotices(); expect((await prisma.serviceNotice.findUniqueOrThrow({ where: { id: `${s.id}:trust-reminder` } })).status).toBe("SENT");
 });

@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { ensureTrustAccess } from "./trust";
 import { prisma } from "../db";
 import { bankConfig, bankRequest, receiptFor, safePaymentUrl, paymentTransition, failedPaymentStatus } from "../billing/tbank";
 import { sealTzData, openTzData } from "../tz-id/crypto";
@@ -21,14 +22,18 @@ export async function createSubscription(user: { id: string; email: string }, in
   const amount = prices[String(input.months)]; if (!Number.isSafeInteger(amount) || amount < 1 || !methods.includes(input.method)) throw Error("Период или способ оплаты недоступен");
   const identity = await prisma.tzIdentityLink.findUnique({ where: { userId: user.id } }); if (!identity || identity.issuer !== "https://id.trioz.ru") throw Error("Войдите через TZ ID");
   const terms = await prisma.commerceSettings.findUnique({ where: { id: "commerce" } }); if (!terms?.approved) throw Error("Владелец ещё не утвердил продавца и условия");
-  return prisma.serviceSubscription.create({ data: { userId: user.id, tzSubject: identity.subject, serviceId: service.id, title: service.title, snapshot: JSON.stringify(service), amountMinor: amount, months: input.months, method: input.method, autoRenew: input.method === "RECURRING", allowCancel: service.allowCancel, consent: JSON.stringify({ version: process.env.SUBSCRIPTION_CONSENT_VERSION || "services-v1", acceptedAt: new Date().toISOString(), amountMinor: amount, months: input.months, recurring: input.recurringConsent, email: user.email, termsRevision: terms.revision, legalVersions: input.legalVersions, agreementAccepted: input.agreementAccepted }), requestKey: input.requestKey, requestHash: hash, activeKey: `${user.id}:${service.id}`, anchor: new Date(), status: input.method === "INVOICE" ? "AWAITING_INVOICE" : "PENDING" } });
+  return prisma.$transaction(async tx => {
+    const created = await tx.serviceSubscription.create({ data: { userId: user.id, tzSubject: identity.subject, serviceId: service.id, title: service.title, snapshot: JSON.stringify(service), amountMinor: amount, months: input.months, method: input.method, autoRenew: input.method === "RECURRING", allowCancel: service.allowCancel, consent: JSON.stringify({ version: process.env.SUBSCRIPTION_CONSENT_VERSION || "services-v1", acceptedAt: new Date().toISOString(), amountMinor: amount, months: input.months, recurring: input.recurringConsent, email: user.email, termsRevision: terms.revision, legalVersions: input.legalVersions, agreementAccepted: input.agreementAccepted }), requestKey: input.requestKey, requestHash: hash, activeKey: `${user.id}:${service.id}`, anchor: new Date(), status: input.method === "INVOICE" ? "AWAITING_INVOICE" : "PENDING" } });
+    await tx.serviceNotice.upsert({ where: { id: `${created.id}:order-created` }, create: { id: `${created.id}:order-created`, subscriptionId: created.id, text: `Создана заявка на «${created.title}»: ${created.amountMinor / 100} ₽ за ${created.months} мес. Это не подтверждение оплаты. ${created.method === "INVOICE" ? "Ожидайте выставления счёта и сверки поступления денег." : "Для оплаты используйте существующую заявку в кабинете Business. Если деньги уже списались, не платите повторно."}` }, update: {} });
+    return created;
+  });
 }
 export async function startServicePayment(subscription: ServiceSubscription, index = 0): Promise<ServiceCycle> {
   if (!purchasesEnabled()) throw Error("Оплата услуг выключена владельцем");
   if (subscription.method === "INVOICE") throw Error("Ожидается выставление и сверка счёта администратором");
   const config = bankConfig();
   if (subscription.method === "RECURRING" && (!recurringEnabled() || config.receiptMode !== "bank")) throw Error("Для автосписаний нужны подтверждение банка и настроенная касса через банк");
-  const prior = await prisma.serviceCycle.findUnique({ where: { subscriptionId_cycleIndex: { subscriptionId: subscription.id, cycleIndex: index } } }); if (prior) return prior;
+  const prior = await prisma.serviceCycle.findUnique({ where: { subscriptionId_cycleIndex: { subscriptionId: subscription.id, cycleIndex: index } } }); if (prior) { if (index === 0) await tryTrustAndSync(subscription.id); return prior; }
   if (index > 0 && (!subscription.autoRenew || subscription.stopRequested || !subscription.rebillEncrypted || subscription.paidIndex !== index - 1)) throw Error("Продление остановлено");
   const eligibility = await serviceHub({ action: "eligibility", subject: subscription.tzSubject }); if (!eligibility.allowed) throw Error("Аккаунт TZ ID недоступен. Списание не отправлено.");
   const owner = await prisma.user.findUniqueOrThrow({ where: { id: subscription.userId } });
@@ -51,6 +56,7 @@ export async function startServicePayment(subscription: ServiceSubscription, ind
       await reconcileServiceCycle(cycle.id);
     }
   } catch { /* Unknown outcomes remain locked. Only signed notifications/GetState can settle them. */ }
+  if (index === 0) await tryTrustAndSync(subscription.id);
   return prisma.serviceCycle.findUniqueOrThrow({ where: { id: cycle.id } });
 }
 export async function applyServicePayment(data: Record<string, unknown>) {
@@ -74,12 +80,12 @@ export async function applyServicePayment(data: Record<string, unknown>) {
       if (cycle.cycleIndex !== sub.paidIndex + 1) throw Error("Payment sequence mismatch");
       const anchor = cycle.cycleIndex === 0 ? new Date() : sub.anchor; const end = periodEnd(anchor, sub.months, cycle.cycleIndex);
       await tx.serviceCycle.update({ where: { id }, data: { periodEnd: end } });
-      await tx.serviceSubscription.update({ where: { id: sub.id }, data: { status: sub.stopNow ? "EXPIRED" : "ACTIVE", anchor, paidUntil: sub.stopNow ? new Date() : end, paidIndex: cycle.cycleIndex, syncVersion: { increment: 1 }, syncPending: true, leaseUntil: null } });
+      await tx.serviceSubscription.update({ where: { id: sub.id }, data: { status: sub.stopNow ? "EXPIRED" : "ACTIVE", anchor, paidUntil: sub.stopNow ? new Date() : end, paidIndex: cycle.cycleIndex, trustUntil: null, syncVersion: { increment: 1 }, syncPending: true, leaseUntil: null } });
       await tx.serviceNotice.upsert({ where: { id: `${id}:paid` }, create: { id: `${id}:paid`, subscriptionId: sub.id, text: sub.stopNow ? `Оплата услуги «${sub.title}» подтверждена после запроса отключения. Доступ не возобновлён. По возврату обратитесь в поддержку.` : `Оплата услуги «${sub.title}» подтверждена. Оплачено до ${end.toISOString()}. ${JSON.parse(sub.snapshot).accessKind === "MANUAL" ? "Подключение выполняет администратор; его состояние отображается в TZ ID." : "Доступ передан на подключение в TZ ID."}` }, update: {} });
     }
     if (failedPaymentStatus(status)) {
       const stillPaid = !!sub.paidUntil && sub.paidUntil > new Date();
-      await tx.serviceSubscription.update({ where: { id: sub.id }, data: { autoRenew: false, stopRequested: true, status: stillPaid ? "ACTIVE" : "EXPIRED", ...(stillPaid ? {} : { syncVersion: { increment: 1 }, syncPending: !!sub.paidUntil, activeKey: null }), leaseUntil: null } });
+      await tx.serviceSubscription.update({ where: { id: sub.id }, data: { autoRenew: false, stopRequested: true, status: stillPaid ? "ACTIVE" : "EXPIRED", ...(stillPaid ? {} : { syncVersion: { increment: 1 }, syncPending: !!sub.paidUntil || !!sub.trustUntil, trustUntil: sub.trustUntil ? new Date() : null, activeKey: null }), leaseUntil: null } });
       await tx.serviceNotice.upsert({ where: { id: `${id}:failed` }, create: { id: `${id}:failed`, subscriptionId: sub.id, text: `Платёж за услугу «${sub.title}» не подтверждён. Автопродление остановлено; доступ сохраняется только до конца уже оплаченного срока. Повторного автоматического списания не будет.` }, update: {} });
     }
     if (status === "REFUNDED" && cycle.cycleIndex === sub.paidIndex) { await tx.serviceSubscription.update({ where: { id: sub.id }, data: { status: "EXPIRED", paidUntil: new Date(), autoRenew: false, stopRequested: true, activeKey: null, syncVersion: { increment: 1 }, syncPending: true } }); }
@@ -94,8 +100,8 @@ export async function reconcileServiceCycle(id: string) {
 export async function stopSubscription(id: string, userId: string, immediate = false) {
   return prisma.$transaction(async tx => {
     const sub = await tx.serviceSubscription.findFirst({ where: { id, userId } }); if (!sub) throw Error("Подписка не найдена");
-    if (immediate && (sub.status !== "ACTIVE" || !sub.paidUntil || sub.paidUntil <= new Date())) throw Error("Нет действующего оплаченного периода");
-    if (immediate && !sub.allowCancel) throw Error("Досрочное отключение выполняет поддержка");
+    if (immediate && (!(["ACTIVE", "TRUSTED"].includes(sub.status)) || !(sub.paidUntil || sub.trustUntil) || (sub.paidUntil || sub.trustUntil)! <= new Date())) throw Error("Нет действующего оплаченного периода");
+    if (immediate && !sub.allowCancel && sub.status !== "TRUSTED") throw Error("Досрочное отключение выполняет поддержка");
     const unresolved = await tx.serviceCycle.count({ where: { subscriptionId: id, status: { in: ["CREATING", "INITIALIZED", "CHARGING", "NEW", "FORM_SHOWED", "AUTHORIZED"] } } });
     const cancelUnpaid = !immediate && sub.paidIndex < 0 && !unresolved;
     const updated = await tx.serviceSubscription.update({ where: { id }, data: { autoRenew: false, stopRequested: true, ...(cancelUnpaid ? { status: "CANCELED", activeKey: null } : {}), ...(immediate ? { stopNow: true } : {}), ...(immediate ? { status: "EXPIRED", paidUntil: new Date(), activeKey: null, syncPending: true, syncVersion: { increment: 1 } } : {}) } });
@@ -103,8 +109,15 @@ export async function stopSubscription(id: string, userId: string, immediate = f
   });
 }
 export async function syncServiceAccess(sub: ServiceSubscription) {
-  if (!sub.syncPending || !sub.paidUntil) return;
-  const result = await serviceHub({ action: "fulfill", subject: sub.tzSubject, externalId: sub.id, serviceId: sub.serviceId, version: sub.syncVersion, expectedAccessKind: JSON.parse(sub.snapshot).accessKind, paidUntil: sub.paidUntil.toISOString(), status: sub.status === "ACTIVE" && sub.paidUntil > new Date() ? "ACTIVE" : "EXPIRED" });
-  await prisma.serviceNotice.upsert({ where: { id: `${sub.id}:access:${sub.syncVersion}` }, create: { id: `${sub.id}:access:${sub.syncVersion}`, subscriptionId: sub.id, text: `Услуга «${sub.title}»: ${result.status === "ACTIVE" ? "доступ подключён в TZ ID." : sub.status === "ACTIVE" ? "заявка на подключение передана исполнителю. Фактическое состояние указано в TZ ID." : "оплаченный доступ завершён. Для ручных услуг создана задача отключения; фактическое выполнение подтверждает администратор."}` }, update: {} });
+  const until = sub.status === "TRUSTED" ? sub.trustUntil : sub.paidUntil || sub.trustUntil;
+  if (!sub.syncPending || !until) return;
+  const active = ["ACTIVE", "TRUSTED"].includes(sub.status) && until > new Date();
+  const result = await serviceHub({ action: "fulfill", subject: sub.tzSubject, externalId: sub.id, serviceId: sub.serviceId, version: sub.syncVersion, expectedAccessKind: JSON.parse(sub.snapshot).accessKind, paidUntil: until.toISOString(), accessSource: sub.status === "TRUSTED" || sub.paidIndex < 0 ? "TRUST" : "PAID", status: active ? "ACTIVE" : "EXPIRED" });
+  await prisma.serviceNotice.upsert({ where: { id: `${sub.id}:access:${sub.syncVersion}` }, create: { id: `${sub.id}:access:${sub.syncVersion}`, subscriptionId: sub.id, text: `Услуга «${sub.title}»: ${result.status === "ACTIVE" ? (sub.status === "TRUSTED" ? "доверительный доступ подключён в TZ ID; оплата ещё ожидается." : "доступ подключён в TZ ID.") : sub.status === "ACTIVE" ? "заявка на подключение передана исполнителю. Фактическое состояние указано в TZ ID." : sub.paidIndex < 0 ? "доверительный доступ завершён. Другие действующие права сохраняются." : "оплаченный доступ завершён. Для ручных услуг создана задача отключения; фактическое выполнение подтверждает администратор."}` }, update: {} });
   await prisma.serviceSubscription.updateMany({ where: { id: sub.id, syncVersion: sub.syncVersion }, data: { syncPending: false } });
+}
+
+async function tryTrustAndSync(id: string) {
+  try { await ensureTrustAccess(id); const live = await prisma.serviceSubscription.findUniqueOrThrow({ where: { id } }); if (live.syncPending) await syncServiceAccess(live); }
+  catch { /* The durable outbox is retried by the scheduled worker; never send another charge here. */ }
 }

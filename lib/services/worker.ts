@@ -1,4 +1,6 @@
 import nodemailer from "nodemailer";
+import type { ServiceSubscription } from "@prisma/client";
+import { ensureTrustAccess, expireTrustAccess, queueServiceReminders } from "./trust";
 import { prisma } from "../db"; import { getMailConfig } from "../mailer-config";
 import { serviceHub, serviceCatalog } from "./bridge"; import { recurringEnabled } from "./calendar";
 import { startServicePayment, reconcileServiceCycle, syncServiceAccess, purchasesEnabled } from "./subscriptions";
@@ -19,6 +21,11 @@ const lease = new Date(Date.now() + 90000); const claimed = await prisma.service
       } catch { failures++; } finally { await prisma.serviceSubscription.updateMany({ where: { id: sub.id, leaseUntil: lease }, data: { leaseUntil: null } }); }
     }
   }
+  // Recovery of newly initialized checkouts after a process crash. No Init or Charge here.
+  const checkouts = await prisma.serviceCycle.findMany({ where: { cycleIndex: 0, paymentId: { not: null }, status: { in: ["NEW", "FORM_SHOWED", "AUTHORIZED"] }, createdAt: { gte: new Date(Date.now() - 15 * 60000) } }, take: 100 });
+  for (const c of checkouts) try { await ensureTrustAccess(c.subscriptionId); } catch { failures++; }
+  await expireTrustAccess();
+  await queueServiceReminders();
   // Read-only recovery after ambiguous Init/Charge; never repeat an uncertain money-moving request.
   const pending = await prisma.serviceCycle.findMany({ where: { paymentId: { not: null }, status: { in: ["NEW", "FORM_SHOWED", "AUTHORIZED", "CHARGING", "INITIALIZED", "CREATING"] } }, take: 100, orderBy: { updatedAt: "asc" } });
   for (const cycle of pending) try { await reconcileServiceCycle(cycle.id); } catch { failures++; }
@@ -28,6 +35,17 @@ const lease = new Date(Date.now() + 90000); const claimed = await prisma.service
   await sendServiceNotices();
   if (failures) throw Error("Some service operations remain pending; no uncertain charge was repeated");
 }
+/** Suppress a queued reminder when a newer bank/access state has already superseded it. */
+function obsoleteNotice(id: string, sub: ServiceSubscription) {
+  const now = new Date();
+  if (id.endsWith(":trust-started") || id.endsWith(":trust-reminder")) return sub.status !== "TRUSTED" || !sub.trustUntil || sub.trustUntil <= now;
+  if (id.endsWith(":trust-ended")) return sub.paidIndex >= 0;
+  if (id.endsWith(":pending-reminder")) return sub.paidIndex >= 0 || !["PENDING", "AWAITING_INVOICE"].includes(sub.status);
+  const period = id.match(/:period-reminder:(\d+)$/);
+  if (period) return Number(period[1]) !== sub.paidIndex || sub.status !== "ACTIVE" || !sub.paidUntil || sub.paidUntil <= now || sub.stopRequested;
+  const version = id.match(/:access:(\d+)$/);
+  return !!version && Number(version[1]) !== sub.syncVersion;
+}
 export async function sendServiceNotices() {
   // A crashed SMTP send is ambiguous too. Do not generate an endless stream of duplicate notices.
   await prisma.serviceNotice.updateMany({ where: { status: "SENDING", leaseUntil: { lt: new Date() } }, data: { status: "UNKNOWN" } });
@@ -35,7 +53,7 @@ export async function sendServiceNotices() {
   for (const job of jobs) {    
 const lease = new Date(Date.now() + 60000); const claimed = await prisma.serviceNotice.updateMany({ where: { id: job.id, status: "PENDING" }, data: { status: "SENDING", leaseUntil: lease, attempts: { increment: 1 } } }); if (!claimed.count) continue;
     try {      
-const sub = await prisma.serviceSubscription.findUniqueOrThrow({ where: { id: job.subscriptionId } }); const user = await prisma.user.findUniqueOrThrow({ where: { id: sub.userId } }); const c = getMailConfig(); const transport = nodemailer.createTransport({ host: c.host, port: c.port, secure: c.secure, requireTLS: !c.secure, auth: { user: c.user, pass: c.pass }, connectionTimeout: 10000, socketTimeout: 15000 }); const sent = await transport.sendMail({ from: c.from, to: user.email, replyTo: c.replyTo, subject: `TRIOZ · ${sub.title}`, text: `${job.text}\n\nУправление услугой: https://business.trioz.ru/subscriptions\nНомер подписки: ${sub.id}`, messageId: `<${job.id.replace(/[^a-zA-Z0-9.-]/g, "-")}@business.trioz.ru>` }); if (!sent.accepted?.length) throw Error("Not accepted"); await prisma.serviceNotice.update({ where: { id: job.id }, data: { status: "SENT", leaseUntil: null } });
+const sub = await prisma.serviceSubscription.findUniqueOrThrow({ where: { id: job.subscriptionId } }); if (obsoleteNotice(job.id, sub)) { await prisma.serviceNotice.update({ where: { id: job.id }, data: { status: "SKIPPED", leaseUntil: null } }); continue; } const user = await prisma.user.findUniqueOrThrow({ where: { id: sub.userId } }); const c = getMailConfig(); const transport = nodemailer.createTransport({ host: c.host, port: c.port, secure: c.secure, requireTLS: !c.secure, auth: { user: c.user, pass: c.pass }, connectionTimeout: 10000, socketTimeout: 15000 }); const sent = await transport.sendMail({ from: c.from, to: user.email, replyTo: c.replyTo, subject: `TRIOZ · ${sub.title}`, text: `${job.text}\n\nУправление услугой: https://business.trioz.ru/subscriptions\nНомер подписки: ${sub.id}`, messageId: `<${job.id.replace(/[^a-zA-Z0-9.-]/g, "-")}@business.trioz.ru>` }); if (!sent.accepted?.length) throw Error("Not accepted"); await prisma.serviceNotice.update({ where: { id: job.id }, data: { status: "SENT", leaseUntil: null } });
     } catch { await prisma.serviceNotice.update({ where: { id: job.id }, data: { status: "UNKNOWN", leaseUntil: null } }); }
   }
 }

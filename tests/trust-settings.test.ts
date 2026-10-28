@@ -1,0 +1,16 @@
+import { beforeEach, expect, it, vi } from "vitest";
+import { NextRequest, NextResponse } from "next/server";
+const db = vi.hoisted(() => ({ serviceTrustPolicy: { upsert: vi.fn() } }));
+vi.mock("@/lib/db", () => ({ prisma: db }));
+vi.mock("@/lib/auth", () => ({ getCurrentUser: vi.fn() }));
+vi.mock("@/lib/security", () => ({ verifyCsrf: vi.fn(() => true), jsonError: (error: string, status: number) => NextResponse.json({ error }, { status }) }));
+vi.mock("@/lib/services/subscriptions", () => ({ applyServicePayment: vi.fn() }));
+vi.mock("@/lib/services/trust", () => ({ trustHours: vi.fn(async () => 24) }));
+import { getCurrentUser } from "@/lib/auth";
+import { verifyCsrf } from "@/lib/security";
+import { POST } from "@/app/api/admin/service-subscriptions/route";
+const call = (hours: unknown) => POST(new NextRequest("https://business.trioz.ru/api/admin/service-subscriptions", { method: "POST", body: JSON.stringify({ action: "trustPolicy", hours }) }));
+beforeEach(() => { vi.clearAllMocks(); vi.mocked(getCurrentUser).mockResolvedValue({ id: "owner", role: "ADMIN" } as never); vi.mocked(verifyCsrf).mockReturnValue(true); });
+it.each([-1, 169, 1.5, "24", null])("rejects unsafe trust duration %s", async hours => { expect((await call(hours)).status).toBe(400); expect(db.serviceTrustPolicy.upsert).not.toHaveBeenCalled(); });
+it.each([0, 1, 24, 168])("saves duration %s and identifies the administrator", async hours => { expect((await call(hours)).status).toBe(200); expect(db.serviceTrustPolicy.upsert).toHaveBeenCalledWith(expect.objectContaining({ update: { hours, updatedBy: "owner" } })); });
+it("requires admin and CSRF for changing service credit", async () => { vi.mocked(getCurrentUser).mockResolvedValue({ id: "client", role: "CLIENT" } as never); expect((await call(24)).status).toBe(403); vi.mocked(getCurrentUser).mockResolvedValue({ id: "owner", role: "ADMIN" } as never); vi.mocked(verifyCsrf).mockReturnValue(false); expect((await call(24)).status).toBe(403); expect(db.serviceTrustPolicy.upsert).not.toHaveBeenCalled(); });
