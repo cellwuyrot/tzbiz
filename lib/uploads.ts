@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import sharp from "sharp";
+import { normaliseImage } from "./image-processor";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -74,16 +74,13 @@ export async function saveUploadedMedia(file: File) {
   const filename = `${crypto.randomBytes(20).toString("hex")}.${rule.extension}`;
   await fs.mkdir(UPLOADS_DIR, { recursive: true });
 
-  let buffer = Buffer.from(await file.arrayBuffer());
+  let buffer: Buffer = Buffer.from(await file.arrayBuffer());
   if (rule.kind === "IMAGE" && !hasValidImageSignature(file.type, buffer)) {
     throw new Error("Файл не соответствует заявленному формату изображения.");
   }
 
   if (rule.kind === "IMAGE") {
-    try {
-      const decoder = sharp(buffer, { failOn: "warning", limitInputPixels: 40_000_000 }).rotate();
-      buffer = await decoder.toFormat(rule.extension === "jpg" ? "jpeg" : rule.extension as "png" | "webp").toBuffer();
-    } catch { throw new Error("Изображение повреждено или слишком большое по разрешению. Экспортируйте его заново в PNG, JPEG или WebP."); }
+    buffer = await normaliseImage(buffer, rule.extension as "png" | "jpg" | "webp");
     if (buffer.length > MAX_IMAGE_BYTES) throw new Error("После обработки изображение превышает 5 МБ.");
   }
   const absolutePath = path.join(UPLOADS_DIR, filename);

@@ -6,6 +6,7 @@ const noIndexHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  images: { unoptimized: true },
   outputFileTracingRoot: process.cwd(),
   reactStrictMode: true,
   async headers() {
