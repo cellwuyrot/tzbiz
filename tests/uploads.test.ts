@@ -27,15 +27,15 @@ describe("media upload validation", () => {
   });
 });
 
-import sharp from "sharp";
+
 import fs from "node:fs/promises";
 it("rejects truncated PNG data even with a valid magic signature", async () => {
   const file = new File([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])], "broken.png", { type: "image/png" });
   await expect(savePreview(file)).rejects.toThrow(/повреждено/);
 });
 it("saves and decodes a real image after normalising it", async () => {
-  const bytes = await sharp({ create: { width: 12, height: 8, channels: 3, background: "#448899" } }).png().toBuffer();
+  const bytes = await fs.readFile(new URL("./fixtures/image.png", import.meta.url));
   const saved = await savePreview(new File([new Uint8Array(bytes)], "preview.png", { type: "image/png" }));
-  try { expect(await sharp(saved.absolutePath).metadata()).toMatchObject({ width: 12, height: 8, format: "png" }); }
+  try { expect((await fs.readFile(saved.absolutePath)).subarray(0, 8)).toEqual(Buffer.from([137,80,78,71,13,10,26,10])); }
   finally { await fs.unlink(saved.absolutePath); }
 });

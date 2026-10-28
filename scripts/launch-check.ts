@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { checkImageProcessor } from "../lib/image-processor";
 import { bankConfig, receiptFor } from "../lib/billing/tbank";
 import { prisma } from "../lib/db";
 import { bankReady, permittedPaymentHosts } from "../lib/invoices";
@@ -9,6 +10,7 @@ async function main() {
   const add = (check: string, ok: boolean, required = true) =>
     checks.push({ check, ok, required });
   add("NODE_22_OR_NEWER", Number(process.versions.node.split(".")[0]) >= 22);
+  add("IMAGE_PROCESSOR", await checkImageProcessor());
   add(
     "DATABASE_POSTGRESQL",
     /^postgres(?:ql)?:/.test(process.env.DATABASE_URL || ""),
