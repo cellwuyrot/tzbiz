@@ -30,7 +30,7 @@ export function receiptFor(title: string, amount: number, email: string, product
 export function safePaymentUrl(value: unknown) {
   if (typeof value !== "string") throw Error("Банк не вернул ссылку на оплату.");
   const u = new URL(value);
-  const allowed = ["securepay.tinkoff.ru", "securepay.tbank.ru"];
+  const allowed = ["securepay.tinkoff.ru", "securepay.tbank.ru", "pay.tbank.ru", "pay.tbank-online.com"];
   if (u.protocol !== "https:" || !allowed.includes(u.hostname) || u.username || u.password || u.port) throw Error("Банк вернул недопустимый адрес оплаты.");
   return u.toString();
 }
