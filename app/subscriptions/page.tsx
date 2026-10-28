@@ -1,0 +1,3 @@
+import { getCurrentUser } from "@/lib/auth"; import { redirect } from "next/navigation"; import { SiteHeader } from "@/components/site-header"; import { CustomerSubscriptions } from "@/components/services/customer-subscriptions";
+export const dynamic = "force-dynamic";
+export default async function Page() { if (!await getCurrentUser()) redirect("/account?returnTo=%2Fsubscriptions"); return <main className="min-h-screen bg-bg text-text"><SiteHeader basePath="/" /><section className="site-shell py-10"><a className="button-secondary mb-6" href="/account">← Личный кабинет</a><CustomerSubscriptions /></section></main>; }

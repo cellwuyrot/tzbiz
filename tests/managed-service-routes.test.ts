@@ -1,0 +1,12 @@
+import { it, expect, vi } from "vitest"; import { NextRequest } from "next/server";
+vi.mock("@/lib/auth", () => ({ getCurrentUser: vi.fn(async () => null), serviceActorProof: vi.fn(async () => null) }));
+vi.mock("@/lib/db", () => ({ prisma: {} }));
+import { GET as adminGet, POST as adminPost } from "@/app/api/admin/service-subscriptions/route";
+import { GET as hubGet, POST as hubPost } from "@/app/api/admin/service-hub/route";
+import { GET as customerGet, POST as customerPost } from "@/app/api/subscriptions/route";
+import { POST as subscriptionPost } from "@/app/api/subscriptions/[id]/route";
+import { getCurrentUser } from "@/lib/auth";
+const req = () => new NextRequest("https://business.trioz.ru/api/subscriptions", { method: "POST", body: "{}" });
+it("denies anonymous reads and mutations before touching the database", async () => { expect((await customerGet()).status).toBe(401); expect((await customerPost(req())).status).toBe(401); expect((await subscriptionPost(req(), { params: Promise.resolve({ id: "other" }) })).status).toBe(401); expect((await adminGet()).status).toBe(403); expect((await adminPost(req())).status).toBe(403); expect((await hubGet()).status).toBe(403); expect((await hubPost(req())).status).toBe(403); });
+it("denies financial administration to ordinary users", async () => { vi.mocked(getCurrentUser).mockResolvedValue({ id: "customer", role: "CLIENT" } as never); expect((await adminGet()).status).toBe(403); expect((await adminPost(req())).status).toBe(403); expect((await hubGet()).status).toBe(403); });
+it("requires CSRF even for an administrator confirming a manual invoice", async () => { vi.mocked(getCurrentUser).mockResolvedValue({ id: "admin", role: "ADMIN" } as never); expect((await adminPost(req())).status).toBe(403); });
