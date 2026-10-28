@@ -1,0 +1,10 @@
+import { beforeEach, afterEach, it, expect, vi } from "vitest";
+const mocks = vi.hoisted(() => ({ set: vi.fn(), create: vi.fn() }));
+vi.mock("next/headers", () => ({ cookies: async () => ({ set: mocks.set }) }));
+vi.mock("@/lib/db", () => ({ prisma: { session: { create: mocks.create } } }));
+import { createSession, SESSION_MAX_AGE } from "@/lib/auth";
+beforeEach(() => { vi.clearAllMocks(); vi.stubEnv("SESSION_SECRET", "synthetic-session-secret-at-least-32-chars"); });
+afterEach(() => vi.unstubAllEnvs());
+const tz = { maxAge: 300, tzIssuer: "https://id.trioz.ru", tzSubject: "sub", tzAccessTokenEncrypted: "encrypted" };
+it("gives a refresh-backed session a seven-day local upper limit instead of five minutes", async () => { await createSession("u1", { ...tz, tzRefreshTokenEncrypted: "encrypted-refresh", tzAccessTokenExpiresAt: new Date(Date.now() + 300000) }); expect(mocks.set.mock.calls[0][2].maxAge).toBe(SESSION_MAX_AGE); const data = mocks.create.mock.calls[0][0].data; expect(data.expiresAt.getTime()).toBeGreaterThan(Date.now() + 6 * 86400000); expect(data.tzRefreshTokenEncrypted).toBe("encrypted-refresh"); });
+it("does not extend a non-refresh session beyond its initial token lifetime", async () => { await createSession("u1", tz); expect(mocks.set.mock.calls[0][2].maxAge).toBe(300); });

@@ -157,6 +157,9 @@ model Session {
   tzIssuer String?
   tzSubject String?
   tzAccessTokenEncrypted String?
+  tzRefreshTokenEncrypted String?
+  tzAccessTokenExpiresAt DateTime?
+  tzRefreshLockUntil DateTime?
 
   @@index([userId])
   @@index([expiresAt])

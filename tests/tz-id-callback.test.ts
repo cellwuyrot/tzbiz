@@ -68,3 +68,9 @@ describe("OIDC callback boundary", () => {
     const response = await GET(req()); expect(response.headers.get("location")).toBe("https://business.trioz.ru/plans?auth=failed"); expect(createSession).not.toHaveBeenCalled();
   });
 });
+it("stores a refresh grant only when renewal was explicitly enabled", async () => {
+ vi.stubEnv("TZ_ID_OFFLINE_ACCESS", "1");
+ mocks.grant.mockResolvedValue({ access_token: "private-access", refresh_token: "private-refresh", expires_in: 300, claims: () => ({ sub: "central-sub", iss: "https://id.trioz.ru", exp: Math.floor(Date.now() / 1000) + 300 }) });
+ await GET(req()); expect(createSession).toHaveBeenCalledWith("local-user", expect.objectContaining({ tzRefreshTokenEncrypted: "encrypted-access", tzAccessTokenExpiresAt: expect.any(Date) }));
+ vi.unstubAllEnvs();
+});

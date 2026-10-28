@@ -89,6 +89,8 @@ export async function GET(request: NextRequest) {
       tzIssuer: config.issuer,
       tzSubject: claims.sub,
       tzAccessTokenEncrypted: sealTzData(token.access_token),
+      tzAccessTokenExpiresAt: new Date(Date.now() + seconds * 1000),
+      ...(token.refresh_token && process.env.TZ_ID_OFFLINE_ACCESS === "1" ? { tzRefreshTokenEncrypted: sealTzData(token.refresh_token) } : {}),
     });
     stage = "project_role";
     let destination = safeReturnTo(transaction.returnTo);

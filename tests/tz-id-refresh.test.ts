@@ -1,0 +1,46 @@
+import { beforeAll, afterAll, beforeEach, it, expect, vi } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
+vi.mock("@/lib/tz-id/client", () => ({ tzIdClient: vi.fn(async () => ({})) }));
+vi.mock("openid-client", async original => ({ ...await original<typeof import("openid-client")>(), refreshTokenGrant: vi.fn(), tokenIntrospection: vi.fn() }));
+vi.mock("@/lib/db", async () => {
+ const { createRequire } = await import("node:module");
+ const dir = fs.mkdtempSync(path.join(process.cwd(), "data/session-integration-"));
+ const url = `file:${path.join(dir, "test.db")}`;
+ const schema = fs.readFileSync("prisma/schema.sqlite.prisma", "utf8").replace(/provider\s*=\s*"prisma-client-js"/, `provider = "prisma-client-js"\n  output = "${path.join(dir, "client")}"`);
+ fs.writeFileSync(path.join(dir, "schema.prisma"), schema);
+ fs.cpSync("prisma/migrations-sqlite", path.join(dir, "migrations"), { recursive: true });
+ for (const action of ["generate", "migrate"]) execFileSync(process.execPath, ["node_modules/prisma/build/index.js", action, ...(action === "migrate" ? ["deploy"] : []), "--schema", path.join(dir, "schema.prisma")], { env: { ...process.env, DATABASE_URL: url }, stdio: "pipe" });
+ const { PrismaClient } = createRequire(path.join(process.cwd(), "package.json"))(path.join(dir, "client"));
+ process.env.SESSION_TEST_DIR = dir;
+ return { prisma: new PrismaClient({ datasourceUrl: url }) };
+});
+import { prisma } from "@/lib/db";
+import * as oidc from "openid-client";
+import { tzIdClient } from "@/lib/tz-id/client";
+import { ensureFreshTzSession } from "@/lib/tz-id/refresh";
+import { sealTzData, openTzData } from "@/lib/tz-id/crypto";
+let userId: string;
+beforeAll(async () => { const u = await prisma.user.create({ data: { email: "refresh@example.test", name: "Test", passwordHash: "unused" } }); userId = u.id; });
+afterAll(async () => { await prisma.$disconnect(); fs.rmSync(process.env.SESSION_TEST_DIR!, { recursive: true, force: true }); vi.unstubAllEnvs(); });
+beforeEach(async () => {
+ vi.clearAllMocks(); await prisma.session.deleteMany();
+ vi.stubEnv("TZ_ID_CLIENT_ID", "tz_test"); vi.stubEnv("TZ_ID_CLIENT_SECRET", "synthetic"); vi.stubEnv("TZ_ID_TOKEN_KEY", Buffer.alloc(32, 9).toString("base64"));
+ vi.mocked(tzIdClient).mockResolvedValue({} as never);
+ vi.mocked(oidc.refreshTokenGrant).mockResolvedValue({ access_token: "new-access", refresh_token: "new-refresh", expires_in: 300 } as never);
+ vi.mocked(oidc.tokenIntrospection).mockResolvedValue({ active: true, sub: "central-sub", client_id: "tz_test" });
+});
+async function session(extra = {}) { return prisma.session.create({ data: { userId, expiresAt: new Date(Date.now() + 86400000), tzIssuer: "https://id.trioz.ru", tzSubject: "central-sub", tzAccessTokenEncrypted: sealTzData("old-access"), tzRefreshTokenEncrypted: sealTzData("old-refresh"), tzAccessTokenExpiresAt: new Date(Date.now() + 20_000), ...extra } }); }
+it("keeps a fresh access token without contacting the provider", async () => { const s = await session({ tzAccessTokenExpiresAt: new Date(Date.now() + 300000) }); expect(await ensureFreshTzSession(s)).toBe(true); expect(oidc.refreshTokenGrant).not.toHaveBeenCalled(); });
+it("rotates and encrypts tokens without shortening the cabinet session", async () => { const s = await session(); const originalExpiry = s.expiresAt; expect(await ensureFreshTzSession(s)).toBe(true); const stored = await prisma.session.findUniqueOrThrow({ where: { id: s.id } }); expect(openTzData(stored.tzAccessTokenEncrypted!)).toBe("new-access"); expect(openTzData(stored.tzRefreshTokenEncrypted!)).toBe("new-refresh"); expect(stored.expiresAt).toEqual(originalExpiry); expect(stored.tzRefreshLockUntil).toBeNull(); expect(s.tzAccessTokenEncrypted).toBe(stored.tzAccessTokenEncrypted); });
+it("coordinates concurrent tabs to a single refresh grant", async () => { const s = await session(); const results = await Promise.all(Array.from({ length: 6 }, () => ensureFreshTzSession({ ...s }))); expect(results).toEqual(Array(6).fill(true)); expect(oidc.refreshTokenGrant).toHaveBeenCalledTimes(1); });
+it("rejects expired local sessions", async () => { const s = await session({ expiresAt: new Date(Date.now() - 1) }); expect(await ensureFreshTzSession(s)).toBe(false); expect(oidc.refreshTokenGrant).not.toHaveBeenCalled(); });
+it.each([{ active: false }, { active: true, sub: "other", client_id: "tz_test" }, { active: true, sub: "central-sub", client_id: "other" }])("rejects mismatched or revoked refreshed access %j", async info => { const s = await session(); vi.mocked(oidc.tokenIntrospection).mockResolvedValue(info); expect(await ensureFreshTzSession(s)).toBe(false); });
+it("preserves the unconsumed refresh credential when discovery is down", async () => { const s = await session(); vi.mocked(tzIdClient).mockRejectedValue(Error("outage")); expect(await ensureFreshTzSession(s)).toBeNull(); const row = await prisma.session.findUniqueOrThrow({ where: { id: s.id } }); expect(row.tzRefreshTokenEncrypted).toBe(s.tzRefreshTokenEncrypted); expect(row.tzRefreshLockUntil).toBeNull(); });
+it("never retries a refresh after an ambiguous lost response", async () => { const s = await session(); vi.mocked(oidc.refreshTokenGrant).mockRejectedValue(Error("network timeout")); expect(await ensureFreshTzSession(s)).toBeNull(); const row = await prisma.session.findUniqueOrThrow({ where: { id: s.id } }); expect(row.tzRefreshTokenEncrypted).toBeNull(); expect(row.tzRefreshLockUntil).not.toBeNull(); await prisma.session.update({ where: { id: s.id }, data: { tzRefreshLockUntil: new Date(Date.now() - 1) } }); const afterCrash = await prisma.session.findUniqueOrThrow({ where: { id: s.id } }); expect(await ensureFreshTzSession(afterCrash)).toBe(false); expect(oidc.refreshTokenGrant).toHaveBeenCalledTimes(1); });
+it("logout during a refresh cannot resurrect a session", async () => { const s = await session(); vi.mocked(oidc.refreshTokenGrant).mockImplementation(async () => { await prisma.session.delete({ where: { id: s.id } }); return { access_token: "new-access", refresh_token: "new-refresh", expires_in: 300 } as never; }); expect(await ensureFreshTzSession(s)).toBe(false); expect(await prisma.session.count()).toBe(0); });
+it("does not extend legacy sessions without a refresh token", async () => { const s = await session({ tzRefreshTokenEncrypted: null, tzAccessTokenExpiresAt: new Date(Date.now() - 1) }); expect(await ensureFreshTzSession(s)).toBe(false); expect(oidc.refreshTokenGrant).not.toHaveBeenCalled(); });
+it("refuses a provider reply without a rotated refresh token", async () => { const s = await session(); vi.mocked(oidc.refreshTokenGrant).mockResolvedValue({ access_token: "new-access", expires_in: 300 } as never); expect(await ensureFreshTzSession(s)).toBe(false); });
+it("invalid_grant requires reauthentication without retrying the old refresh token", async () => { const s = await session(); vi.mocked(oidc.refreshTokenGrant).mockRejectedValue(new oidc.ResponseBodyError("revoked", { cause: { error: "invalid_grant" }, response: new Response('{"error":"invalid_grant"}', { status: 400 }) })); expect(await ensureFreshTzSession(s)).toBe(false); expect(oidc.refreshTokenGrant).toHaveBeenCalledTimes(1); });
+it("a request in another worker waits for the durable rotation and uses its new token", async () => { const s = await session({ tzRefreshTokenEncrypted: null, tzRefreshLockUntil: new Date(Date.now() + 45000) }); const waiting = ensureFreshTzSession(s); await new Promise(resolve => setTimeout(resolve, 50)); await prisma.session.update({ where: { id: s.id }, data: { tzAccessTokenEncrypted: sealTzData("other-worker-access"), tzRefreshTokenEncrypted: sealTzData("other-worker-refresh"), tzAccessTokenExpiresAt: new Date(Date.now() + 300000), tzRefreshLockUntil: null } }); expect(await waiting).toBe(true); expect(openTzData(s.tzAccessTokenEncrypted!)).toBe("other-worker-access"); expect(oidc.refreshTokenGrant).not.toHaveBeenCalled(); });
