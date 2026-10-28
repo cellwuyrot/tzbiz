@@ -8,7 +8,7 @@ export function safeReturnTo(value: unknown): string {
   )
     return "/account";
   const url = new URL(value, "https://business.trioz.ru");
-  return /^(\/plans(?:\/[a-zA-Z0-9-]+)?|\/account|\/services\/[a-z0-9-]+|\/invoices\/[a-zA-Z0-9]+)$/.test(
+  return /^(\/plans(?:\/[a-zA-Z0-9-]+)?|\/account|\/subscriptions|\/services\/[a-z0-9-]+|\/invoices\/[a-zA-Z0-9]+)$/.test(
     url.pathname,
   )
     ? `${url.pathname}${url.search}`

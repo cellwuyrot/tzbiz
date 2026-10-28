@@ -34,7 +34,7 @@ export function safePaymentUrl(value: unknown) {
   if (u.protocol !== "https:" || !allowed.includes(u.hostname) || u.username || u.password || u.port) throw Error("Банк вернул недопустимый адрес оплаты.");
   return u.toString();
 }
-export async function bankRequest(method: "Init" | "GetState", payload: Record<string, unknown>) {
+export async function bankRequest(method: "Init" | "GetState" | "Charge", payload: Record<string, unknown>) {
   const c = bankConfig();
   const data = { ...payload, TerminalKey: c.terminal };
   const response = await fetch(`https://securepay.tinkoff.ru/v2/${method}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...data, Token: bankToken(data, c.password) }), signal: AbortSignal.timeout(12_000), redirect: "error", cache: "no-store" });

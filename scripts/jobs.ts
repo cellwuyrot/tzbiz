@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { runServiceJobs } from "../lib/services/worker";
 import { prisma } from "../lib/db";
 import { processMailBatch } from "../lib/mail-outbox";
 async function main() {
@@ -17,6 +18,7 @@ async function main() {
       },
     });
     const n = await processMailBatch();
+    await runServiceJobs();
     await prisma.maintenanceState.upsert({
       where: { key: "mail-worker" },
       create: { key: "mail-worker", lastSuccessAt: new Date() },

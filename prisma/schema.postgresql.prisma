@@ -383,3 +383,62 @@ model BankPayment {
   updatedAt DateTime @updatedAt
   @@index([orderId, createdAt])
 }
+
+model ServiceSubscription {
+ id String @id @default(cuid())
+ userId String
+ tzSubject String
+ serviceId String
+ title String
+ snapshot String
+ amountMinor Int
+ months Int
+ method String
+ status String @default("PENDING")
+ autoRenew Boolean @default(false)
+ allowCancel Boolean
+ rebillEncrypted String?
+ consent String
+ requestKey String @unique
+ requestHash String
+ activeKey String? @unique
+ anchor DateTime
+ paidUntil DateTime?
+ paidIndex Int @default(-1)
+ syncVersion Int @default(0)
+ syncPending Boolean @default(false)
+ stopRequested Boolean @default(false)
+ stopNow Boolean @default(false)
+ leaseUntil DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([userId, createdAt])
+ @@index([status, paidUntil])
+}
+model ServiceCycle {
+ id String @id @default(cuid())
+ subscriptionId String
+ cycleIndex Int
+ periodEnd DateTime
+ amountMinor Int
+ terminalKey String
+ paymentId String? @unique
+ paymentUrl String @default("")
+ status String @default("CREATING")
+ rebillEncrypted String?
+ revision Int @default(1)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@unique([subscriptionId, cycleIndex])
+ @@index([status, updatedAt])
+}
+model ServiceNotice {
+ id String @id
+ subscriptionId String
+ text String
+ status String @default("PENDING")
+ leaseUntil DateTime?
+ attempts Int @default(0)
+ availableAt DateTime @default(now())
+ @@index([status, availableAt])
+}

@@ -120,3 +120,15 @@ export async function requireRole(role: Role) {
     redirect(user.role === "ADMIN" ? "/admin" : "/dashboard");
   return user;
 }
+
+/** Proof for project-scoped service administration. Never expose this token to browser JSON. */
+export async function serviceActorProof() {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "ADMIN") return null;
+  const store = await cookies(); const raw = store.get(SESSION_COOKIE)?.value;
+  if (!raw) return null;
+  const session = await prisma.session.findUnique({where:{id:sessionHash(raw)}});
+  if (!session?.tzAccessTokenEncrypted) return null;
+  const { openTzData } = await import("./tz-id/crypto");
+  return {subject:session.tzSubject!,token:openTzData<string>(session.tzAccessTokenEncrypted)};
+}

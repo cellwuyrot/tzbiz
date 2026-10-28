@@ -1,4 +1,6 @@
 import "dotenv/config";
+import {purchasesEnabled} from "../lib/services/subscriptions";
+import {recurringEnabled} from "../lib/services/calendar";
 import { checkImageProcessor } from "../lib/image-processor";
 import { bankConfig, receiptFor } from "../lib/billing/tbank";
 import { prisma } from "../lib/db";
@@ -66,8 +68,8 @@ async function main() {
       {
         checks,
         automaticAcquiring: acquiring,
-        localRecurringCharges: false,
-        automaticTzIdFulfillment: false,
+        localRecurringCharges: purchasesEnabled() && recurringEnabled(),
+        automaticTzIdFulfillment: process.env.SERVICE_HUB_ENABLED === "1",
       },
       null,
       2,

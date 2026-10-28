@@ -377,6 +377,7 @@ export function AdminConsole({
         ) : null}
 
         <p className="mt-3 type-body text-muted">Контент, клиенты и продажи — в одном рабочем пространстве. Вход только через TZ ID.</p>
+        <a href="/admin/service-hub" className="button-secondary mt-4">Услуги, подписки и администраторы TZ ID →</a>
         <nav className="admin-navigation mt-8" aria-label="Разделы админ-панели">
           {([
             { label: "Контент", items: [["services", "Услуги"], ["projects", "Проекты"], ["settings", "Главная страница"]] },

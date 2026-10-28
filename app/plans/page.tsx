@@ -61,6 +61,11 @@ export default async function Plans({
             Как оформить и оплатить
           </Link>
         </div>
+        <div className="panel p-6 space-y-3">
+          <h2 className="type-h3">Услуги и подписки TZ ID</h2>
+          <p className="type-body text-muted">Premium, надёжное соединение и подключаемые услуги с периодами 1, 3, 6 и 12 месяцев — в общем каталоге TZ ID. Там же можно посмотреть оплаченный срок и отключить автопродление. Эти подключения оформляются отдельно от разовых предложений ниже.</p>
+          <Link href="/subscriptions" className="button-primary">Выбрать услугу TZ ID</Link>
+        </div>
         {params.auth === "failed" && (
           <p role="alert" className="panel p-5 text-danger">
             Вход не завершён. Начните заново через кабинет. Если у вас уже был аккаунт Business,

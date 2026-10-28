@@ -1,6 +1,6 @@
 {
   "name": "trioz-services-portal",
-  "version": "1.3.2",
+  "version": "1.4.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -27,7 +27,8 @@
     "legal:templates": "tsx scripts/export-legal.ts",
     "account:link-tz": "tsx scripts/link-tz-account.ts",
     "payment:reconcile": "tsx scripts/reconcile-payment.ts",
-    "images:check": "tsx scripts/image-check.ts"
+    "images:check": "tsx scripts/image-check.ts",
+    "services:check": "tsx scripts/service-check.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.16.0",
