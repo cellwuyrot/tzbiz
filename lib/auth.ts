@@ -42,12 +42,16 @@ export async function createSession(
     tzIssuer: string;
     tzSubject: string;
     tzAccessTokenEncrypted: string;
+    tzRefreshTokenEncrypted?: string;
+    tzAccessTokenExpiresAt?: Date;
   },
 ) {
   sessionSecret();
   const raw = `${crypto.randomBytes(32).toString("hex")}.${crypto.randomBytes(16).toString("hex")}`;
   const id = sessionHash(raw);
-  const maxAge = tz
+  const maxAge = tz?.tzRefreshTokenEncrypted
+    ? SESSION_MAX_AGE
+    : tz
     ? Math.max(1, Math.min(300, Math.floor(tz.maxAge)))
     : SESSION_MAX_AGE;
   const expiresAt = new Date(Date.now() + maxAge * 1000);
@@ -61,6 +65,8 @@ export async function createSession(
             tzIssuer: tz.tzIssuer,
             tzSubject: tz.tzSubject,
             tzAccessTokenEncrypted: tz.tzAccessTokenEncrypted,
+            tzRefreshTokenEncrypted: tz.tzRefreshTokenEncrypted ?? null,
+            tzAccessTokenExpiresAt: tz.tzAccessTokenExpiresAt ?? null,
           }
         : {}),
     },

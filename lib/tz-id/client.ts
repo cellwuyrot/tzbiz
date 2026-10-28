@@ -1,6 +1,7 @@
 import * as oidc from "openid-client";
 import { getTzIdConfig } from "./config";
 import { openTzData } from "./crypto";
+import { ensureFreshTzSession, type RefreshableSession } from "./refresh";
 let cached:
   | { key: string; until: number; value: Promise<oidc.Configuration> }
   | undefined;
@@ -26,11 +27,7 @@ export function tzIdClient() {
   });
   return value;
 }
-export async function isActiveTzSession(session: {
-  tzIssuer: string | null;
-  tzSubject: string | null;
-  tzAccessTokenEncrypted: string | null;
-}) {
+export async function isActiveTzSession(session: RefreshableSession) {
   try {
     const config = getTzIdConfig();
     if (
@@ -39,6 +36,8 @@ export async function isActiveTzSession(session: {
       !session.tzSubject
     )
       return false;
+    const refreshed = await ensureFreshTzSession(session);
+    if (refreshed !== true) return refreshed;
     const token = openTzData<string>(session.tzAccessTokenEncrypted);
     const result = await oidc.tokenIntrospection(await tzIdClient(), token);
     return (

@@ -58,7 +58,8 @@ export async function beginTzLogin(
   return oidc.buildAuthorizationUrl(client, {
     response_type: "code",
     redirect_uri: config.callbackUrl,
-    scope: "openid profile email roles:read",
+    scope: `openid profile email roles:read${process.env.TZ_ID_OFFLINE_ACCESS === "1" ? " offline_access" : ""}`,
+    ...(process.env.TZ_ID_OFFLINE_ACCESS === "1" ? { prompt: "consent" } : {}),
     state: transaction.state,
     nonce: transaction.nonce,
     code_challenge: await oidc.calculatePKCECodeChallenge(transaction.verifier),
