@@ -1,0 +1,12 @@
+import { beforeEach, expect, it, vi } from "vitest";
+vi.mock("node:fs/promises", () => ({ default: { unlink: vi.fn(async () => {}) } }));
+vi.mock("@/lib/db", () => ({ prisma: { project: { count: vi.fn() }, serviceMedia: { count: vi.fn() }, billingPlan: { count: vi.fn() } } }));
+import fs from "node:fs/promises";
+import { prisma } from "@/lib/db";
+import { removeUpload } from "@/lib/uploads";
+const filename = "/api/uploads/" + "c".repeat(40) + ".png";
+beforeEach(() => { vi.clearAllMocks(); vi.mocked(prisma.project.count).mockResolvedValue(0); vi.mocked(prisma.serviceMedia.count).mockResolvedValue(0); vi.mocked(prisma.billingPlan.count).mockResolvedValue(0); });
+it("does not delete an image still used in a tariff", async () => { vi.mocked(prisma.billingPlan.count).mockResolvedValue(1); await removeUpload(filename); expect(fs.unlink).not.toHaveBeenCalled(); });
+it("keeps files when reference checks fail", async () => { vi.mocked(prisma.project.count).mockRejectedValue(Error("offline")); await removeUpload(filename); expect(fs.unlink).not.toHaveBeenCalled(); });
+it("deletes an unreferenced file", async () => { await removeUpload(filename); expect(fs.unlink).toHaveBeenCalledTimes(1); });
+it("rejects traversal without touching the filesystem", async () => { await removeUpload("/api/uploads/../secret"); expect(fs.unlink).not.toHaveBeenCalled(); });

@@ -124,8 +124,9 @@ describe("privacy and consent boundaries", () => {
         { cookie: "trioz_csrf=test", "x-csrf-token": "test" },
       ),
     );
-    expect(r.status).toBe(503);
-    expect(r.headers.get("set-cookie")).toBeNull();
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ chosen: true, analytics: false, analyticsReady: false, notice: expect.any(String) });
+    expect(r.headers.get("set-cookie")).toContain("1%3Ano");
   });
   it("stores only a daily path aggregate after valid consent", async () => {
     const policy = await consentPolicy();

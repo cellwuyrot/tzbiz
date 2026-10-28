@@ -1,3 +1,4 @@
+import { MediaImage } from "@/components/media-image";
 import { renameDisplayText } from "@/lib/display-labels";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -52,9 +53,9 @@ export default async function Plans({
         <div className="panel flex flex-wrap items-center justify-between gap-5 p-6">
           <p className="max-w-3xl type-body text-muted">
             Выберите предложение и проект, в котором оно действует.
-            Администратор согласует условия и выставит счёт или платёжную
-            ссылку. TZ ID — общий вход; оплата и выдача доступа в другом проекте
-            подтверждаются отдельно.
+            Тарифы с фиксированной предоплатой можно оформить и оплатить через Т-Банк.
+            Стоимость по согласованию и услуги без предоплаты обсуждаем отдельно.
+            Вход — через TZ ID; выдача доступа в другом проекте подтверждается отдельно.
           </p>
           <Link href="/payment" className="button-secondary">
             Как оформить и оплатить
@@ -62,8 +63,8 @@ export default async function Plans({
         </div>
         {params.auth === "failed" && (
           <p role="alert" className="panel p-5 text-danger">
-            Вход не завершён. Начните заново через кабинет. Если email уже
-            используется, войдите в существующий аккаунт и свяжите TZ ID.
+            Вход не завершён. Начните заново через кабинет. Если у вас уже был аккаунт Business,
+            обратитесь в поддержку для переноса привязки к TZ ID. Парольный вход отключён.
           </p>
         )}
         <div className="grid gap-6 lg:grid-cols-2">
@@ -85,7 +86,7 @@ export default async function Plans({
                 </span>
               </div>
               {p.cardImageUrl && (
-                <img
+                <MediaImage
                   src={p.cardImageUrl}
                   alt={p.title}
                   className="aspect-video w-full rounded-xl object-cover"
@@ -122,11 +123,11 @@ export default async function Plans({
                   ? "Без предоплаты — не значит бесплатно. Стоимость и расчёт согласуются до начала работ."
                   : p.settlementMode === "SUBSCRIPTION"
                     ? "Заявка не активирует Premium / «Надёжное соединение». Автоматические списания недоступны."
-                    : "Сначала согласование и счёт. Доступ не предоставляется по одному факту заявки."}
+                    : "При фиксированной цене доступна онлайн-оплата через банк. Сроки исполнения указаны в условиях."}
               </p>
               <div className="mt-auto pt-3">
                 <Link className="button-primary" href={`/plans/${p.id}`}>
-                  Условия и заявка →
+                  Условия и оформление →
                 </Link>
               </div>
             </article>

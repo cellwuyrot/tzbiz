@@ -256,6 +256,7 @@ model CommerceSettings {
   updatedAt DateTime @updatedAt
 }
 model BusinessOrder {
+  payments BankPayment[]
   id String @id @default(cuid())
   userId String
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -362,4 +363,20 @@ model PageViewDaily {
   path String
   views Int @default(0)
   @@id([day, path])
+}
+
+model BankPayment {
+  id String @id @default(cuid())
+  orderId String
+  order BusinessOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  activeKey String? @unique
+  paymentId String? @unique
+  terminalKey String
+  amountMinor Int
+  status String @default("CREATING")
+  paymentUrl String @default("")
+  revision Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([orderId, createdAt])
 }

@@ -1,4 +1,6 @@
 "use client";
+import { MediaImage } from "@/components/media-image";
+
 import { readAdminResponse } from "@/lib/admin-fetch";
 import { AdminDocuments } from "./admin-documents";
 import { AdminAnalytics } from "./admin-analytics";
@@ -374,36 +376,20 @@ export function AdminConsole({
           </div>
         ) : null}
 
-        <nav
-          className="mt-8 flex flex-wrap gap-2"
-          aria-label="Разделы админ-панели"
-        >
-          {(
-            [
-              ["services", "Услуги"],
-              ["projects", "Проекты"],
-              ["leads", "Заявки"],
-              ["clients", "Клиенты"],
-              ["settings", "Настройки сайта"],
-              ["integrations", "Интеграции"],
-              ["billing", "Товары и подписки"],
-              ["documents", "Документы"],
-              ["analytics", "Аналитика"],
-              ["invoices", "Счета"],
-              ["commerce", "Продажи и условия"],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              className={
-                activeSection === id ? "button-primary" : "button-secondary"
-              }
-              onClick={() => setActiveSection(id)}
-            >
-              {label}
-            </button>
-          ))}
+        <p className="mt-3 type-body text-muted">Контент, клиенты и продажи — в одном рабочем пространстве. Вход только через TZ ID.</p>
+        <nav className="admin-navigation mt-8" aria-label="Разделы админ-панели">
+          {([
+            { label: "Контент", items: [["services", "Услуги"], ["projects", "Проекты"], ["settings", "Главная страница"]] },
+            { label: "Клиенты", items: [["leads", "Обращения"], ["clients", "Клиенты"]] },
+            { label: "Продажи", items: [["billing", "Тарифы"], ["invoices", "Счета"], ["commerce", "Заказы и условия"]] },
+            { label: "Управление", items: [["integrations", "Интеграции"], ["documents", "Документы"], ["analytics", "Аналитика"]] },
+          ] as const).map(group => {
+            const selected = group.items.some(([id]) => id === activeSection);
+            return <div key={group.label} className={selected ? "admin-nav-group is-active" : "admin-nav-group"}>
+              <button type="button" className={selected ? "button-primary" : "button-secondary"} aria-expanded={selected} onClick={() => { if (!selected) setActiveSection(group.items[0][0]); }}>{group.label}</button>
+              {selected && <div className="admin-subnav" aria-label={group.label}>{group.items.map(([id, label]) => <button type="button" key={id} aria-current={activeSection === id ? "page" : undefined} className={activeSection === id ? "admin-subnav-active" : ""} onClick={() => setActiveSection(id)}>{label}</button>)}</div>}
+            </div>;
+          })}
         </nav>
 
         {activeSection === "integrations" ? <AdminIntegrations /> : null}
@@ -414,7 +400,7 @@ export function AdminConsole({
 
         {activeSection === "services" ? (
           <section
-            className="mt-10 grid gap-8 xl:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]"
+            className="mt-8 grid gap-6"
             aria-labelledby="services-admin-title"
           >
             <div>
@@ -432,7 +418,8 @@ export function AdminConsole({
             </div>
 
             <div className="space-y-5">
-              <form onSubmit={createService} className="panel space-y-5 p-6">
+              <details className="panel p-6"><summary className="type-h3 cursor-pointer">Добавить услугу</summary>
+              <form onSubmit={createService} className="space-y-5 mt-5">
                 <h3 className="type-h3 text-text">Добавить услугу</h3>
                 <ServiceFields
                   values={serviceForm}
@@ -464,9 +451,9 @@ export function AdminConsole({
                 >
                   {savingService ? "Сохранение…" : "Создать услугу"}
                 </button>
-              </form>
+              </form></details>
 
-              {services.map((service) => (
+              <div className="admin-records">{services.map((service) => (
                 <ServiceEditorCard
                   key={service.id}
                   service={service}
@@ -475,14 +462,14 @@ export function AdminConsole({
                   onMediaOrder={updateMediaOrder}
                   onMediaDelete={deleteMedia}
                 />
-              ))}
+              ))}</div>
             </div>
           </section>
         ) : null}
 
         {activeSection === "projects" ? (
           <section
-            className="mt-10 grid gap-8 xl:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]"
+            className="mt-8 grid gap-6"
             aria-labelledby="projects-admin-title"
           >
             <div>
@@ -520,6 +507,7 @@ export function AdminConsole({
                   ))}
                 </select>
               </div>
+              <details className="panel p-6"><summary className="type-h3 cursor-pointer">Добавить проект</summary><div className="mt-5">
               <ProjectCreateForm
                 clients={clients}
                 onCreated={(project) => {
@@ -528,6 +516,7 @@ export function AdminConsole({
                 }}
                 onError={setError}
               />
+              </div></details>
               <div className="space-y-4">
                 {filteredProjects.length === 0 ? (
                   <div className="panel p-6 type-body text-muted">
@@ -584,7 +573,7 @@ export function AdminConsole({
 
         {activeSection === "settings" ? (
           <section
-            className="mt-10 grid gap-8 xl:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]"
+            className="mt-8 grid gap-6"
             aria-labelledby="settings-title"
           >
             <div>
@@ -1285,7 +1274,7 @@ function ProjectEditCard({
     <form onSubmit={save} className="panel p-6">
       <div className="flex flex-col gap-4 sm:flex-row">
         <div className="relative h-28 w-full overflow-hidden rounded-2xl border border-border bg-panel-2 sm:w-44">
-          <img
+          <MediaImage
             src={project.previewPath}
             alt={`Превью проекта «${project.title}»`}
             className="h-full w-full object-cover"

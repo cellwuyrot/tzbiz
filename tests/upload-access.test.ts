@@ -1,0 +1,16 @@
+import { beforeEach, expect, it, vi } from "vitest";
+vi.mock("@/lib/db", () => ({ prisma: { project: { findMany: vi.fn() }, serviceMedia: { findMany: vi.fn() }, billingPlan: { findMany: vi.fn() } } }));
+vi.mock("@/lib/auth", () => ({ getCurrentUser: vi.fn() }));
+vi.mock("node:fs/promises", () => ({ default: { stat: vi.fn(async () => ({ isFile: () => true, size: 100 })) } }));
+import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
+import { HEAD } from "@/app/api/uploads/[file]/route";
+const file = "a".repeat(40) + ".png", ctx = { params: Promise.resolve({ file }) };
+const request = new Request(`https://business.trioz.ru/api/uploads/${file}`, { method: "HEAD" });
+beforeEach(() => { vi.clearAllMocks(); vi.mocked(prisma.project.findMany).mockResolvedValue([]); vi.mocked(prisma.serviceMedia.findMany).mockResolvedValue([]); vi.mocked(prisma.billingPlan.findMany).mockResolvedValue([]); vi.mocked(getCurrentUser).mockResolvedValue(null); });
+it("serves a published tariff image without requiring login", async () => { vi.mocked(prisma.billingPlan.findMany).mockResolvedValue([{ isPublished: true, isArchived: false, kind: "PRODUCT" }] as never); const r = await HEAD(request, ctx); expect(r.status).toBe(200); expect(r.headers.get("Content-Type")).toBe("image/png"); expect(r.headers.get("Cache-Control")).toContain("no-store"); });
+it("does not leak draft or archived tariff media", async () => { for (const plan of [{ isPublished: false, isArchived: false }, { isPublished: true, isArchived: true }, { isPublished: true, isArchived: false, kind: "SERVICE", service: { isPublished: false } }]) { vi.mocked(prisma.billingPlan.findMany).mockResolvedValue([plan] as never); expect((await HEAD(request, ctx)).status).toBe(404); } });
+it("lets an administrator preview unpublished plan images", async () => { vi.mocked(prisma.billingPlan.findMany).mockResolvedValue([{ isPublished: false }] as never); vi.mocked(getCurrentUser).mockResolvedValue({ id: "admin", role: "ADMIN" } as never); expect((await HEAD(request, ctx)).status).toBe(200); });
+it("isolates private project previews by client", async () => { vi.mocked(prisma.project.findMany).mockResolvedValue([{ isPublic: false, clientId: "client-a" }] as never); vi.mocked(getCurrentUser).mockResolvedValue({ id: "client-b", role: "CLIENT" } as never); expect((await HEAD(request, ctx)).status).toBe(404); vi.mocked(getCurrentUser).mockResolvedValue({ id: "client-a", role: "CLIENT" } as never); expect((await HEAD(request, ctx)).status).toBe(200); });
+it("checks every service reference rather than returning the first draft", async () => { vi.mocked(prisma.serviceMedia.findMany).mockResolvedValue([{ service: { isPublished: false } }, { service: { isPublished: true } }] as never); expect((await HEAD(request, ctx)).status).toBe(200); });
+it("rejects traversal before database lookup", async () => { expect((await HEAD(request, { params: Promise.resolve({ file: "../secret.png" }) })).status).toBe(404); expect(prisma.billingPlan.findMany).not.toHaveBeenCalled(); });

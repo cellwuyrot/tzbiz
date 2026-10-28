@@ -70,6 +70,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         error.message.includes("Расширение") ||
         error.message.includes("Размер") ||
         error.message.includes("формату изображения") ||
+        error.message.includes("повреждено") ||
+        error.message.includes("После обработки") ||
         error.message.includes("Превью проекта"))
     )
       return jsonError(error.message, 400);

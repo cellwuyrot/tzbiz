@@ -53,6 +53,7 @@ export async function GET(r: NextRequest) {
       },
       _sum: { amountMinor: true },
     });
+    const bankPaid = await prisma.bankPayment.findMany({ where: { orderId: { in: orders.map(o => o.id) }, status: "CONFIRMED" }, select: { orderId: true, amountMinor: true } });
     const paid = new Map(
       payments.map((p) => [p.orderId, p._sum.amountMinor || 0]),
     );
@@ -63,7 +64,7 @@ export async function GET(r: NextRequest) {
           paymentConfirmed:
             o.amountMinor !== null &&
             o.amountMinor > 0 &&
-            (paid.get(o.id) || 0) >= o.amountMinor,
+            ((paid.get(o.id) || 0) >= o.amountMinor || bankPaid.some(p => p.orderId === o.id && p.amountMinor === o.amountMinor)),
         })),
         total,
         page,

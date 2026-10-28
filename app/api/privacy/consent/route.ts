@@ -37,15 +37,15 @@ export async function POST(r: NextRequest) {
   if (!p.success) return jsonError("Выберите режим cookie.", 400);
   let analytics = p.data.analytics && !privacySignal(r.headers);
   const policy = analytics ? await consentPolicy().catch(() => null) : null;
-  if (analytics && !policy)
-    return jsonError(
-      "Аналитика недоступна: владелец ещё не опубликовал политику данных и cookie.",
-      503,
-    );
+  const notice = analytics && !policy
+    ? "Выбор сохранён: только необходимые cookie. Аналитика пока недоступна — политики ещё не опубликованы."
+    : p.data.analytics && privacySignal(r.headers)
+      ? "Выбор сохранён: сигнал приватности браузера отключает аналитику." : "";
   analytics = analytics && !!policy;
   const response = NextResponse.json(
     {
       chosen: true,
+      notice,
       analytics,
       analyticsReady: !!policy,
       version: CONSENT_VERSION,

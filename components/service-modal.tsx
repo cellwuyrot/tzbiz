@@ -1,4 +1,6 @@
 "use client";
+import { MediaImage } from "@/components/media-image";
+
 
 import { useEffect, useRef, useState } from "react";
 import type { ServiceView } from "@/lib/service-content";
@@ -225,7 +227,7 @@ export function ServiceModal({
                       aria-label={`Видео услуги «${service.title}»`}
                     />
                   ) : media ? (
-                    <img src={media.path} alt="" />
+                    <MediaImage src={media.path} alt="" />
                   ) : null}
                 </div>
                 {service.media.length > 1 ? (

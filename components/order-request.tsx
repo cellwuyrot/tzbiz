@@ -1,12 +1,15 @@
 "use client";
+import { PaymentButton } from "./payment-button";
 import { useLegalConsent } from "@/lib/use-legal-consent";
 import { useEffect, useState } from "react";
 export function OrderRequest({
   planId,
   revision,
+  payable = false,
 }: {
   planId: string;
   revision: number;
+  payable?: boolean;
 }) {
   const legal = useLegalConsent();
   const [offer, setOffer] = useState(false);
@@ -79,26 +82,26 @@ export function OrderRequest({
   if (id)
     return (
       <div className="panel space-y-4 p-6" role="status">
-        <h2 className="type-h3">Заявка сохранена</h2>
+        <h2 className="type-h3">{payable ? "Заказ оформлен" : "Заявка сохранена"}</h2>
         <p className="type-body break-all">Номер: {id}</p>
         <p className="type-body text-muted">
-          Условия предложения зафиксированы. Оплаты и активации подписки не
-          было. Следите за статусом в кабинете.
+          Условия заказа сохранены. Оплата ещё не проведена.
+          {payable ? " Перейдите на защищённую страницу банка для оплаты." : " Следите за согласованием в кабинете."}
         </p>
-        <a href="/account" className="button-primary">
+        {payable && <PaymentButton orderId={id} />}
+        <a href="/account?section=orders" className="button-primary">
           Перейти в кабинет
         </a>
       </div>
     );
   return (
     <form onSubmit={submit} className="panel space-y-5 p-6">
-      <h2 className="type-h3">Заявка на товар или услугу</h2>
+      <h2 className="type-h3">Оформление заказа</h2>
       <p className="type-body text-muted">
-        Это заявка на согласование, не платёж и не согласие на автоматические
-        списания.
+        {payable ? "Сохраните заказ, затем оплатите его на странице Т-Банка. Это разовый платёж, без автосписаний." : "Отправьте заявку для согласования стоимости и сроков. Оплата на этом шаге не проводится."}
       </p>
       <label className="block type-ui">
-        Опишите задачу
+        Комментарий к заказу или описание задачи
         <textarea
           className="field mt-2 min-h-32"
           required
@@ -197,7 +200,7 @@ export function OrderRequest({
         disabled={busy || !legal.ready}
         type="submit"
       >
-        {busy ? "Сохраняем…" : "Отправить заявку"}
+        {busy ? "Сохраняем…" : payable ? "Оформить заказ" : "Отправить заявку"}
       </button>
     </form>
   );

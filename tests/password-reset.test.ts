@@ -26,25 +26,11 @@ describe("client password reset", () => {
     vi.mocked(verifyCsrf).mockReturnValue(true);
   });
 
-  it("revokes existing client sessions after a successful reset", async () => {
-    const updateMany = vi.fn().mockResolvedValue({ count: 1 });
-    const deleteMany = vi.fn().mockResolvedValue({ count: 2 });
-    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback({
-      user: { updateMany },
-      session: { deleteMany },
-    } as never));
-
-    const request = new NextRequest("http://localhost:3000/api/admin/clients/client-1/reset-password", {
-      method: "POST",
-      headers: { "x-csrf-token": "test" },
-    });
-
+  it("does not reset or expose a password after TZ ID-only migration", async () => {
+    const request = new NextRequest("http://localhost:3000/api/admin/clients/client-1/reset-password", { method: "POST", headers: { "x-csrf-token": "test" } });
     const response = await POST(request, { params: Promise.resolve({ id: "client-1" }) });
-    expect(response.status).toBe(200);
-    expect(updateMany).toHaveBeenCalledWith({
-      where: { id: "client-1", role: "CLIENT" },
-      data: expect.objectContaining({ passwordHash: expect.any(String) }),
-    });
-    expect(deleteMany).toHaveBeenCalledWith({ where: { userId: "client-1" } });
+    expect(response.status).toBe(410);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(await response.text()).not.toContain("temporaryPassword");
   });
 });

@@ -1,3 +1,4 @@
+import { bankConfig } from "./billing/tbank";
 import { logFailure } from "./diagnostics";
 import { prisma } from "./db";
 import { tzIdConfigSnapshot } from "./tz-id/config";
@@ -21,6 +22,9 @@ export async function integrationStatus() {
   const failedMailJobs = await prisma.mailJob
     .count({ where: { status: "FAILED" } })
     .catch(() => null);
+  let checkoutEnabled = false;
+  let checkoutIssue = "";
+  try { bankConfig(); checkoutEnabled = true; } catch (e) { checkoutIssue = e instanceof Error ? e.message : "Проверьте конфигурацию."; }
   return {
     worker: {
       lastSuccessAt: worker?.lastSuccessAt.toISOString() || null,
@@ -34,9 +38,10 @@ export async function integrationStatus() {
     mail: mailConfigSnapshot(),
     tzId: tzIdConfigSnapshot(),
     billing: {
-      checkoutEnabled: false as const,
+      checkoutEnabled,
+      checkoutIssue,
       recurringEnabled: false as const,
-      provider: "Провайдер оплаты (не подключён)",
+      provider: "Т-Банк — платёжная форма",
       premiumVpnFulfillment: false as const,
     },
     checks: checks.map((check) => ({
@@ -48,7 +53,7 @@ export async function integrationStatus() {
     platform: {
       connected: false as const,
       reason:
-        "Вход Business через существующий OIDC TZ ID реализован и требует конфигурации. Заявки на тарифы и снимки условий реализованы. Обмен подписками, приём платежей и выдача Premium / «Надёжное соединение» требуют контракта центрального биллинга. Письмо на info@trioz.ru не создаёт аккаунт или подписку.",
+        "Вход Business через существующий OIDC TZ ID реализован и требует конфигурации. Заявки на тарифы и снимки условий реализованы. Онлайн-оплата реализована через Т-Банк и требует настройки терминала. Обмен подписками и выдача Premium / «Надёжное соединение» требуют API принимающего проекта. Письмо на info@trioz.ru не создаёт аккаунт или подписку.",
     },
   };
 }

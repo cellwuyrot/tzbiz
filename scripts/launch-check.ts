@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { bankConfig, receiptFor } from "../lib/billing/tbank";
 import { prisma } from "../lib/db";
 import { bankReady, permittedPaymentHosts } from "../lib/invoices";
 import { tzIdConfigSnapshot } from "../lib/tz-id/config";
@@ -35,6 +36,7 @@ async function main() {
     add("LEGAL_DOCUMENTS_PUBLISHED", (await legalState()).ready);
     await prisma.pageViewDaily.count();
     await prisma.invoice.count();
+    await prisma.bankPayment.count();
     await prisma.integrationCheck.count();
     add("DATABASE_SCHEMA", true);
     const worker = await prisma.maintenanceState.findUnique({
@@ -50,11 +52,18 @@ async function main() {
   add("SMTP_CONFIGURATION", mailConfigSnapshot().configured);
   add("TZ_ID_CONFIGURATION", tzIdConfigSnapshot().configured);
   add("EXTERNAL_PAYMENT_HOSTS", permittedPaymentHosts().length > 0, false);
+  let acquiring = false;
+  try {
+    const config = bankConfig();
+    if (config.receiptMode === "bank") receiptFor("Проверка конфигурации", 100, "check@example.invalid", "SERVICE");
+    acquiring = true;
+  } catch { /* Report configuration presence only, never secret values. */ }
+  add("TBANK_CONFIGURATION_AND_RECEIPTS", acquiring);
   console.log(
     JSON.stringify(
       {
         checks,
-        automaticAcquiring: false,
+        automaticAcquiring: acquiring,
         localRecurringCharges: false,
         automaticTzIdFulfillment: false,
       },

@@ -1,3 +1,4 @@
+import { MediaImage } from "@/components/media-image";
 import { prisma } from "@/lib/db";
 import { safeJsonLd } from "@/lib/json-ld";
 import type { Metadata } from "next";
@@ -159,7 +160,7 @@ export default async function ServicePage({
                     aria-label={`Видео услуги ${service.title}`}
                   />
                 ) : (
-                  <img
+                  <MediaImage
                     src={service.media[0].path}
                     alt={`Иллюстрация услуги «${service.title}»`}
                   />

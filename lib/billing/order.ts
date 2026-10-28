@@ -5,7 +5,7 @@ export const orderInput = z.object({
   revision: z.number().int().positive(),
   requestKey: z.string().uuid(),
   message: z.string().trim().min(10).max(5000),
-  legalVersions: z.record(z.string().max(120)).optional(),
+  legalVersions: z.record(z.string(), z.string().max(120)).optional(),
   offerAccepted: z.boolean().optional(),
   agreementAccepted: z.literal(true),
   privacyConsent: z.literal(true),

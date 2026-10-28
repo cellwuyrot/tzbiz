@@ -1,11 +1,12 @@
 import crypto from "node:crypto";
+import sharp from "sharp";
 import fs from "node:fs/promises";
 import path from "node:path";
 
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
 
-const UPLOADS_DIR = path.join(process.cwd(), "uploads");
+const UPLOADS_DIR = path.resolve(process.env.UPLOADS_DIR || path.join(process.cwd(), "uploads"));
 
 const MEDIA_RULES = {
   "image/png": { extension: "png", maxBytes: MAX_IMAGE_BYTES, kind: "IMAGE" },
@@ -73,11 +74,18 @@ export async function saveUploadedMedia(file: File) {
   const filename = `${crypto.randomBytes(20).toString("hex")}.${rule.extension}`;
   await fs.mkdir(UPLOADS_DIR, { recursive: true });
 
-  const buffer = Buffer.from(await file.arrayBuffer());
+  let buffer = Buffer.from(await file.arrayBuffer());
   if (rule.kind === "IMAGE" && !hasValidImageSignature(file.type, buffer)) {
     throw new Error("Файл не соответствует заявленному формату изображения.");
   }
 
+  if (rule.kind === "IMAGE") {
+    try {
+      const decoder = sharp(buffer, { failOn: "warning", limitInputPixels: 40_000_000 }).rotate();
+      buffer = await decoder.toFormat(rule.extension === "jpg" ? "jpeg" : rule.extension as "png" | "webp").toBuffer();
+    } catch { throw new Error("Изображение повреждено или слишком большое по разрешению. Экспортируйте его заново в PNG, JPEG или WebP."); }
+    if (buffer.length > MAX_IMAGE_BYTES) throw new Error("После обработки изображение превышает 5 МБ.");
+  }
   const absolutePath = path.join(UPLOADS_DIR, filename);
   await fs.writeFile(absolutePath, buffer, { flag: "wx" });
   return {
@@ -94,6 +102,17 @@ export async function removeUpload(uploadPath: string) {
       uploadPath,
     );
   if (!match) return;
+  // A file can be shared by plan, service and project cards. Keep live references.
+  // On database failure prefer a harmless orphan over breaking a published image.
+  try {
+    const { prisma } = await import("./db");
+    const references = await Promise.all([
+      prisma.project.count({ where: { previewPath: uploadPath } }),
+      prisma.serviceMedia.count({ where: { path: uploadPath } }),
+      prisma.billingPlan.count({ where: { cardImageUrl: uploadPath } }),
+    ]);
+    if (references.some(Boolean)) return;
+  } catch { return; }
   await fs
     .unlink(path.join(UPLOADS_DIR, `${match[1]}.${match[2]}`))
     .catch(() => undefined);

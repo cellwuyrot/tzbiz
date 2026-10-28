@@ -80,6 +80,8 @@ export async function POST(request: NextRequest) {
         error.message.includes("Расширение") ||
         error.message.includes("Размер") ||
         error.message.includes("формату изображения") ||
+        error.message.includes("повреждено") ||
+        error.message.includes("После обработки") ||
         error.message.includes("Превью проекта"))
     )
       return jsonError(error.message, 400);
