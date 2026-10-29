@@ -1,0 +1,7 @@
+import {beforeEach,it,expect,vi} from "vitest";
+vi.mock("@/lib/auth",()=>({monitoringActorProof:vi.fn()}));vi.mock("@/lib/monitoring",()=>({monitoringRequest:vi.fn()}));
+import {monitoringActorProof} from "@/lib/auth";import {monitoringRequest} from "@/lib/monitoring";import {GET} from "@/app/api/monitor/projects/route";
+beforeEach(()=>vi.clearAllMocks());
+it("requires a server-side session proof",async()=>{vi.mocked(monitoringActorProof).mockResolvedValue(null);expect((await GET(new Request("https://business.trioz.ru/api/monitor/projects"))).status).toBe(401);expect(monitoringRequest).not.toHaveBeenCalled();});
+it("passes project filter but never a requested user identity",async()=>{const proof={tzSubject:"own"};vi.mocked(monitoringActorProof).mockResolvedValue(proof as never);vi.mocked(monitoringRequest).mockResolvedValue({history:[]});const r=await GET(new Request("https://business.trioz.ru/api/monitor/projects?projectId=p&subject=someone-else"));expect(r.status).toBe(200);expect(monitoringRequest).toHaveBeenCalledWith(proof,{action:"history",projectId:"p"});expect(r.headers.get("Cache-Control")).toBe("no-store");});
+it("connection failure is not an empty success",async()=>{vi.mocked(monitoringActorProof).mockResolvedValue({tzSubject:"own"} as never);vi.mocked(monitoringRequest).mockRejectedValue(Error("Мониторинг недоступен"));const r=await GET(new Request("https://business.trioz.ru/api/monitor/projects"));expect(r.status).toBe(503);});

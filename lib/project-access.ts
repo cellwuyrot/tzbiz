@@ -10,7 +10,7 @@ export async function getVisibleProjectForUser(
   if (!project) return null;
   if (user.role === "ADMIN") return project;
   if (
-    user.role === "CLIENT" &&
+    (user.role === "CLIENT" || user.role === "CONSULTANT") &&
     canAccessClientProject(user.id, project.clientId)
   )
     return project;
