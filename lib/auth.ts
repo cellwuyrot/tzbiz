@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { Role, User } from "@prisma/client";
 import { prisma } from "./db";
 import { isActiveTzSession } from "./tz-id/client";
+import { readMonitoringRole } from "./monitoring";
 import { readTzProjectRole } from "./tz-id/project-role";
 
 export const SESSION_COOKIE = "trioz_session";
@@ -108,9 +109,8 @@ export const getCurrentUser = cache(async function getCurrentUser(): Promise<Use
     return null;
   }
   // Only a current grant for this OIDC client can grant admin access in a TZ ID session.
-  return session.tzIssuer
-    ? { ...session.user, role: await readTzProjectRole(session) }
-    : session.user;
+  const projectRole = await readTzProjectRole(session);
+  return { ...session.user, role: projectRole === "ADMIN" ? "ADMIN" : await readMonitoringRole(session) };
 });
 
 export async function requireRole(role: Role) {
@@ -131,4 +131,12 @@ export async function serviceActorProof() {
   if (!session?.tzAccessTokenEncrypted) return null;
   const { openTzData } = await import("./tz-id/crypto");
   return {subject:session.tzSubject!,token:openTzData<string>(session.tzAccessTokenEncrypted)};
+}
+
+/** Current user proof for read-only partner monitoring. Never serialize the token. */
+export async function monitoringActorProof() {
+ const user=await getCurrentUser();if(!user)return null;
+ const raw=(await cookies()).get(SESSION_COOKIE)?.value;if(!raw)return null;
+ const session=await prisma.session.findUnique({where:{id:sessionHash(raw)}});
+ return session&&session.userId===user.id?session:null;
 }

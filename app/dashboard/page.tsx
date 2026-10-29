@@ -1,7 +1,9 @@
 import { MediaImage } from "@/components/media-image";
 import Link from "next/link";
 import { getClientProjects } from "@/lib/project-access";
-import { requireRole } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { ProjectMonitor } from "@/components/project-monitor";
 import { STATUS_LABELS } from "@/lib/constants";
 import { ArrowUpRight, LogoMark } from "@/components/icons";
 import { LogoutButton } from "@/components/logout-button";
@@ -9,7 +11,9 @@ import { LogoutButton } from "@/components/logout-button";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const user = await requireRole("CLIENT");
+  const user = await getCurrentUser();
+  if (!user) redirect("/account");
+  if (user.role === "ADMIN") redirect("/admin");
   const projects = await getClientProjects(user.id);
 
   return (
@@ -19,7 +23,7 @@ export default async function DashboardPage() {
           <div className="flex items-center gap-3">
             <LogoMark />
             <div>
-              <p className="brand-mark text-text">TRIOZ / CLIENT</p>
+              <p className="brand-mark text-text">TRIOZ / BUSINESS</p>
               <p className="type-ui text-subtle">Личный кабинет</p>
             </div>
           </div>
@@ -37,6 +41,8 @@ export default async function DashboardPage() {
         </div>
 
         <nav className="account-tabs mb-8" aria-label="Личный кабинет"><Link href="/account?section=orders">Заказы и оплата</Link><Link href="/account?section=invoices">Счета</Link><Link href="/account?section=profile">Профиль</Link><Link href="/dashboard" aria-current="page">Мои проекты</Link></nav>
+        {user.role === "CONSULTANT" ? <ProjectMonitor /> : <p className="panel p-6 type-body text-muted">Мониторинг партнёрских проектов доступен после назначения администратором роли партнёра в TrioZ и закрепления проекта за вашим аккаунтом.</p>}
+        <details className="mt-10"><summary className="min-h-12 cursor-pointer type-ui">Материалы и ранее назначенные проекты</summary>
         {projects.length === 0 ? (
           <div className="panel grid min-h-[300px] place-items-center p-8 text-center">
             <div>
@@ -86,6 +92,7 @@ export default async function DashboardPage() {
             ))}
           </div>
         )}
+        </details>
       </section>
     </main>
   );
